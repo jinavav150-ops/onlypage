@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>신혼여행 경비 관리 💑✈️</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .exchange-rate {
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        .input-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .currency-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .currency-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .currency-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .summary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+
+        .summary-row:last-child {
+            margin-bottom: 0;
+            padding-top: 10px;
+            border-top: 2px solid rgba(255,255,255,0.3);
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .expense-list {
+            margin-top: 20px;
+        }
+
+        .expense-item {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .expense-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 8px;
+        }
+
+        .expense-category {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .expense-description {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .expense-amount {
+            font-size: 18px;
+            font-weight: 700;
+            color: #f5576c;
+        }
+
+        .expense-converted {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        .expense-memo {
+            color: #666;
+            font-size: 13px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .expense-time {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .delete-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 8px;
+            margin-right: 5px;
+        }
+
+        .delete-btn:first-of-type {
+            background: #667eea;
+        }
+
+        .delete-btn:hover {
+            opacity: 0.8;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            background: #ff4757;
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .firebase-status {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .firebase-status.connected {
+            background: rgba(76, 217, 100, 0.3);
+        }
+
+        .firebase-status.disconnected {
+            background: rgba(255, 59, 48, 0.3);
+        }
+
+        .section-toggle {
+            background: #667eea;
+            color: white;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            width: 100%;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .section-toggle:hover {
+            background: #5568d3;
+        }
+
+        .section-toggle .arrow {
+            transition: transform 0.3s;
+        }
+
+        .section-toggle.collapsed .arrow {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0;
+        }
+
+        .converter-section {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .converter-section h3 {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .converter-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .converter-input {
+            flex: 1;
+        }
+
+        .converter-input input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid white;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .converter-input label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .converter-arrow {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+
+        .converter-result {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💑 포르투갈 & 스페인 신혼여행</h1>
+            <p class="subtitle">다솔 ❤️ 호철</p>
+            <div class="exchange-rate" id="exchangeRate">
+                환율: 1 EUR = 로딩중... KRW
+            </div>
+            <div class="firebase-status disconnected" id="firebaseStatus">
+                Firebase 연결 중...
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="summary" id="summary">
+                <div class="summary-row">
+                    <span>총 지출 (유로)</span>
+                    <span id="totalEuro">€0.00</span>
+                </div>
+                <div class="summary-row">
+                    <span>총 지출 (원화)</span>
+                    <span id="totalKrw">₩0</span>
+                </div>
+            </div>
+
+            <!-- 환율 계산기 -->
+            <div class="converter-section">
+                <h3>💱 환율 계산기</h3>
+                <div class="converter-row">
+                    <div class="converter-input">
+                        <label>유로 (EUR)</label>
+                        <input type="number" id="converterEuro" step="0.01" placeholder="0.00" oninput="convertToKrw()">
+                    </div>
+                    <div class="converter-arrow">⇄</div>
+                    <div class="converter-input">
+                        <label>원화 (KRW)</label>
+                        <input type="number" id="converterKrw" step="1" placeholder="0" oninput="convertToEuro()">
+                    </div>
+                </div>
+                <div class="converter-result" id="converterResult" style="display: none;">
+                </div>
+            </div>
+
+            <button class="section-toggle" onclick="toggleExpenseForm()">
+                <span>💸 지출 추가</span>
+                <span class="arrow">▼</span>
+            </button>
+
+            <div class="collapsible-content" id="expenseFormContent">
+                <div class="input-section">
+                <h3 style="margin-bottom: 15px; color: #333;">지출 내역 입력</h3>
+                
+                <div class="form-group">
+                    <label>카테고리</label>
+                    <select id="category">
+                        <option value="숙박">🏨 숙박</option>
+                        <option value="식사">🍽️ 식사</option>
+                        <option value="교통">🚕 교통</option>
+                        <option value="관광">🎫 관광</option>
+                        <option value="쇼핑">🛍️ 쇼핑</option>
+                        <option value="기타">💳 기타</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>내용</label>
+                    <input type="text" id="description" placeholder="예: 리스본 호텔 숙박">
+                </div>
+
+                <div class="form-group">
+                    <label>금액 입력 화폐</label>
+                    <div class="currency-toggle">
+                        <button class="currency-btn active" id="btnEuro" onclick="selectCurrency('euro')">€ 유로</button>
+                        <button class="currency-btn" id="btnKrw" onclick="selectCurrency('krw')">₩ 원화</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>금액</label>
+                    <input type="number" id="amount" step="0.01" placeholder="금액 입력">
+                </div>
+
+                <div class="form-group">
+                    <label>메모 (선택사항)</label>
+                    <textarea id="memo" placeholder="추가 메모사항..."></textarea>
+                </div>
+
+                <button class="btn" onclick="addExpense()">💾 지출 추가</button>
+            </div>
+            </div>
+
+            <div class="expense-list" id="expenseList">
+                <div class="loading">지출 내역을 불러오는 중...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, push, onValue, remove, get, set } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        // Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyCN-Pqv6WYd4-M2eX8Q-5HKXpjO81ZWpkQ",
+            authDomain: "honeymoon-fb8e4.firebaseapp.com",
+            databaseURL: "https://honeymoon-fb8e4-default-rtdb.firebaseio.com",
+            projectId: "honeymoon-fb8e4",
+            storageBucket: "honeymoon-fb8e4.firebasestorage.app",
+            messagingSenderId: "818600435101",
+            appId: "1:818600435101:web:d20c3e3f43c806ed9ba374"
+        };
+
+        let app, database;
+        let exchangeRate = 1450; // 기본 환율 (API 로딩 전)
+        let currentCurrency = 'euro';
+
+        // 실시간 환율 가져오기
+        async function fetchExchangeRate() {
+            try {
+                // exchangerate-api.com 사용 (무료)
+                const response = await fetch('https://api.exchangerate-api.com/v4/latest/EUR');
+                const data = await response.json();
+                
+                if (data.rates && data.rates.KRW) {
+                    exchangeRate = Math.round(data.rates.KRW);
+                    document.getElementById('exchangeRate').textContent = 
+                        `환율: 1 EUR = ${exchangeRate.toLocaleString()} KRW (실시간)`;
+                    console.log('실시간 환율 업데이트:', exchangeRate);
+                }
+            } catch (error) {
+                console.error('환율 가져오기 실패:', error);
+                document.getElementById('exchangeRate').textContent = 
+                    `환율: 1 EUR = ${exchangeRate.toLocaleString()} KRW (기본값)`;
+            }
+        }
+
+        // 페이지 로드 시 환율 가져오기
+        fetchExchangeRate();
+        // 1시간마다 환율 업데이트
+        setInterval(fetchExchangeRate, 3600000);
+
+        // Firebase 초기화
+        try {
+            app = initializeApp(firebaseConfig);
+            database = getDatabase(app);
+            updateFirebaseStatus(true);
+            
+            // 지출 내역 실시간 리스닝
+            const expensesRef = ref(database, 'honeymoon-expenses');
+            onValue(expensesRef, (snapshot) => {
+                displayExpenses(snapshot.val());
+                updateSummary(snapshot.val());
+            });
+        } catch (error) {
+            console.error("Firebase 초기화 실패:", error);
+            updateFirebaseStatus(false);
+            document.getElementById('expenseList').innerHTML = 
+                '<div class="error">Firebase 연결 실패. Firebase 설정을 확인해주세요.</div>';
+        }
+
+        // Firebase 연결 상태 표시
+        function updateFirebaseStatus(connected) {
+            const statusEl = document.getElementById('firebaseStatus');
+            if (connected) {
+                statusEl.className = 'firebase-status connected';
+                statusEl.textContent = '✓ Firebase 연결됨';
+            } else {
+                statusEl.className = 'firebase-status disconnected';
+                statusEl.textContent = '✗ Firebase 연결 안됨';
+            }
+        }
+
+        // 환율 표시
+        document.getElementById('exchangeRate').textContent = 
+            `환율: 1 EUR = ${exchangeRate.toLocaleString()} KRW`;
+
+        // 접기/펼치기 기능
+        window.toggleExpenseForm = function() {
+            const content = document.getElementById('expenseFormContent');
+            const button = document.querySelector('.section-toggle');
+            
+            content.classList.toggle('collapsed');
+            button.classList.toggle('collapsed');
+        };
+
+        // 환율 계산기 - 유로 → 원화
+        window.convertToKrw = function() {
+            const euroInput = document.getElementById('converterEuro');
+            const krwInput = document.getElementById('converterKrw');
+            const result = document.getElementById('converterResult');
+            
+            const euroAmount = parseFloat(euroInput.value);
+            
+            if (euroAmount && euroAmount > 0) {
+                const krwAmount = Math.round(euroAmount * exchangeRate);
+                krwInput.value = krwAmount;
+                result.textContent = `€${euroAmount.toFixed(2)} = ₩${krwAmount.toLocaleString()}`;
+                result.style.display = 'block';
+            } else {
+                krwInput.value = '';
+                result.style.display = 'none';
+            }
+        };
+
+        // 환율 계산기 - 원화 → 유로
+        window.convertToEuro = function() {
+            const euroInput = document.getElementById('converterEuro');
+            const krwInput = document.getElementById('converterKrw');
+            const result = document.getElementById('converterResult');
+            
+            const krwAmount = parseFloat(krwInput.value);
+            
+            if (krwAmount && krwAmount > 0) {
+                const euroAmount = krwAmount / exchangeRate;
+                euroInput.value = euroAmount.toFixed(2);
+                result.textContent = `₩${Math.round(krwAmount).toLocaleString()} = €${euroAmount.toFixed(2)}`;
+                result.style.display = 'block';
+            } else {
+                euroInput.value = '';
+                result.style.display = 'none';
+            }
+        };
+
+        // 화폐 선택
+        window.selectCurrency = function(currency) {
+            currentCurrency = currency;
+            document.getElementById('btnEuro').classList.toggle('active', currency === 'euro');
+            document.getElementById('btnKrw').classList.toggle('active', currency === 'krw');
+        };
+
+        // 지출 추가
+        window.addExpense = async function() {
+            const category = document.getElementById('category').value;
+            const description = document.getElementById('description').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const memo = document.getElementById('memo').value;
+
+            if (!description || !amount) {
+                alert('내용과 금액을 입력해주세요!');
+                return;
+            }
+
+            // 유로로 변환
+            const amountInEuro = currentCurrency === 'euro' ? amount : amount / exchangeRate;
+            const amountInKrw = currentCurrency === 'krw' ? amount : amount * exchangeRate;
+
+            const expense = {
+                category,
+                description,
+                amountInEuro: parseFloat(amountInEuro.toFixed(2)),
+                amountInKrw: Math.round(amountInKrw),
+                inputCurrency: currentCurrency,
+                memo,
+                timestamp: Date.now()
+            };
+
+            try {
+                const expensesRef = ref(database, 'honeymoon-expenses');
+                await push(expensesRef, expense);
+                
+                // 입력 필드 초기화
+                document.getElementById('description').value = '';
+                document.getElementById('amount').value = '';
+                document.getElementById('memo').value = '';
+                
+            } catch (error) {
+                console.error("지출 추가 실패:", error);
+                alert('지출 추가에 실패했습니다.');
+            }
+        };
+
+        // 지출 삭제
+        window.deleteExpense = async function(expenseId) {
+            if (confirm('이 지출 내역을 삭제하시겠습니까?')) {
+                try {
+                    const expenseRef = ref(database, `honeymoon-expenses/${expenseId}`);
+                    await remove(expenseRef);
+                } catch (error) {
+                    console.error("지출 삭제 실패:", error);
+                    alert('지출 삭제에 실패했습니다.');
+                }
+            }
+        };
+
+        // 지출 수정
+        window.editExpense = async function(expenseId) {
+            const expensesRef = ref(database, 'honeymoon-expenses');
+            const snapshot = await get(expensesRef);
+            const expenses = snapshot.val();
+            
+            if (!expenses || !expenses[expenseId]) {
+                alert('지출 내역을 찾을 수 없습니다.');
+                return;
+            }
+
+            const expense = expenses[expenseId];
+            
+            // 입력 폼 펼치기
+            const content = document.getElementById('expenseFormContent');
+            const button = document.querySelector('.section-toggle');
+            content.classList.remove('collapsed');
+            button.classList.remove('collapsed');
+            
+            // 기존 값 입력
+            document.getElementById('category').value = expense.category;
+            document.getElementById('description').value = expense.description;
+            document.getElementById('memo').value = expense.memo || '';
+            
+            // 입력 화폐에 따라 금액 설정
+            if (expense.inputCurrency === 'euro') {
+                selectCurrency('euro');
+                document.getElementById('amount').value = expense.amountInEuro;
+            } else {
+                selectCurrency('krw');
+                document.getElementById('amount').value = expense.amountInKrw;
+            }
+            
+            // 저장 버튼을 수정 모드로 변경
+            const saveBtn = document.querySelector('.btn');
+            saveBtn.textContent = '✏️ 수정 완료';
+            saveBtn.onclick = async function() {
+                await updateExpense(expenseId);
+            };
+            
+            // 화면 상단으로 스크롤
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        // 지출 업데이트
+        async function updateExpense(expenseId) {
+            const category = document.getElementById('category').value;
+            const description = document.getElementById('description').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const memo = document.getElementById('memo').value;
+
+            if (!description || !amount) {
+                alert('내용과 금액을 입력해주세요!');
+                return;
+            }
+
+            // 유로로 변환
+            const amountInEuro = currentCurrency === 'euro' ? amount : amount / exchangeRate;
+            const amountInKrw = currentCurrency === 'krw' ? amount : amount * exchangeRate;
+
+            const expense = {
+                category,
+                description,
+                amountInEuro: parseFloat(amountInEuro.toFixed(2)),
+                amountInKrw: Math.round(amountInKrw),
+                inputCurrency: currentCurrency,
+                memo,
+                timestamp: Date.now()
+            };
+
+            try {
+                const expenseRef = ref(database, `honeymoon-expenses/${expenseId}`);
+                await set(expenseRef, expense);
+                
+                // 입력 필드 초기화
+                resetForm();
+                
+                alert('수정이 완료되었습니다!');
+            } catch (error) {
+                console.error("지출 수정 실패:", error);
+                alert('지출 수정에 실패했습니다.');
+            }
+        }
+
+        // 폼 초기화 함수
+        function resetForm() {
+            document.getElementById('description').value = '';
+            document.getElementById('amount').value = '';
+            document.getElementById('memo').value = '';
+            
+            const saveBtn = document.querySelector('.btn');
+            saveBtn.textContent = '💾 지출 추가';
+            saveBtn.onclick = addExpense;
+        }
+
+        // 지출 내역 표시
+        function displayExpenses(expenses) {
+            const listEl = document.getElementById('expenseList');
+            
+            if (!expenses) {
+                listEl.innerHTML = '<div class="loading">아직 지출 내역이 없습니다.</div>';
+                return;
+            }
+
+            const expenseArray = Object.entries(expenses).map(([id, data]) => ({
+                id,
+                ...data
+            }));
+
+            // 최신순 정렬
+            expenseArray.sort((a, b) => b.timestamp - a.timestamp);
+
+            listEl.innerHTML = expenseArray.map(expense => {
+                const date = new Date(expense.timestamp);
+                const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+                
+                return `
+                    <div class="expense-item">
+                        <div class="expense-header">
+                            <div>
+                                <div class="expense-category">${expense.category}</div>
+                                <div class="expense-description">${expense.description}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div class="expense-amount">€${expense.amountInEuro.toFixed(2)}</div>
+                                <div class="expense-converted">₩${expense.amountInKrw.toLocaleString()}</div>
+                            </div>
+                        </div>
+                        ${expense.memo ? `<div class="expense-memo">📝 ${expense.memo}</div>` : ''}
+                        <div class="expense-time">⏰ ${dateStr}</div>
+                        <button class="delete-btn" onclick="editExpense('${expense.id}')">✏️ 수정</button>
+                        <button class="delete-btn" onclick="deleteExpense('${expense.id}')">🗑️ 삭제</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 총액 업데이트
+        function updateSummary(expenses) {
+            if (!expenses) {
+                document.getElementById('totalEuro').textContent = '€0.00';
+                document.getElementById('totalKrw').textContent = '₩0';
+                return;
+            }
+
+            const totals = Object.values(expenses).reduce((acc, expense) => {
+                acc.euro += expense.amountInEuro || 0;
+                acc.krw += expense.amountInKrw || 0;
+                return acc;
+            }, { euro: 0, krw: 0 });
+
+            document.getElementById('totalEuro').textContent = `€${totals.euro.toFixed(2)}`;
+            document.getElementById('totalKrw').textContent = `₩${Math.round(totals.krw).toLocaleString()}`;
+        }
+    </script>
+</body>
+</html>
