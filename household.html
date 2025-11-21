@@ -154,9 +154,9 @@
         function Household() {
             const [activeMonth, setActiveMonth] = useState('25년11월');
             const [monthData, setMonthData] = useState({});
-            const [isFixedExpanded, setIsFixedExpanded] = useState(true);
-            const [isExpenseExpanded, setIsExpenseExpanded] = useState(true);
-            const [isIncomeExpanded, setIsIncomeExpanded] = useState(true);
+            const [isFixedExpanded, setIsFixedExpanded] = useState(false);
+            const [isExpenseExpanded, setIsExpenseExpanded] = useState(false);
+            const [isIncomeExpanded, setIsIncomeExpanded] = useState(false);
             const [months, setMonths] = useState([]);
             const [showMonthManage, setShowMonthManage] = useState(false);
             const [newMonthYear, setNewMonthYear] = useState('25');
