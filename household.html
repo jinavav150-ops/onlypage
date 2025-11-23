@@ -104,7 +104,8 @@
             firebase.initializeApp(firebaseConfig);
         }
         const db = firebase.firestore();
-// 아이콘 컴포넌트들
+
+        // 아이콘 컴포넌트들
         const ChevronDown = ({ size = 24 }) => (
             React.createElement('svg', {
                 width: size, height: size, viewBox: "0 0 24 24", fill: "none",
@@ -157,6 +158,7 @@
             const [isFixedExpanded, setIsFixedExpanded] = useState(false);
             const [isExpenseExpanded, setIsExpenseExpanded] = useState(false);
             const [isIncomeExpanded, setIsIncomeExpanded] = useState(false);
+            const [isRefundExpanded, setIsRefundExpanded] = useState(false);
             const [months, setMonths] = useState([]);
             const [showMonthManage, setShowMonthManage] = useState(false);
             const [newMonthYear, setNewMonthYear] = useState('25');
@@ -174,7 +176,12 @@
                     snapshot.forEach((doc) => {
                         const monthName = doc.id;
                         monthsList.push(monthName);
-                        data[monthName] = doc.data();
+                        const docData = doc.data();
+                        // refund 필드가 없으면 빈 배열로 초기화
+                        data[monthName] = {
+                            ...docData,
+                            refund: docData.refund || []
+                        };
                     });
 
                     if (monthsList.length === 0) {
@@ -182,7 +189,8 @@
                         const initialData = {
                             fixed: [],
                             expense: [],
-                            income: []
+                            income: [],
+                            refund: []
                         };
 
                         initialMonths.forEach(month => {
@@ -222,7 +230,7 @@
                 };
             }, []);
 
-            const currentData = localData[activeMonth] || { fixed: [], expense: [], income: [] };
+            const currentData = localData[activeMonth] || { fixed: [], expense: [], income: [], refund: [] };
 
             const sortByDate = (items, type) => {
                 const hasEditing = items.some(item => editingItems[`${type}-${item.id}`]);
@@ -263,14 +271,16 @@
                         .catch(err => console.error('저장 실패:', err));
                 }, 500);
             };
-const addMonth = () => {
+
+            const addMonth = () => {
                 const monthFormatted = newMonthMonth.toString().padStart(2, '0');
                 const newMonth = `${newMonthYear}년${monthFormatted}월`;
                 if (!months.includes(newMonth)) {
                     db.collection('household').doc(newMonth).set({
                         fixed: [],
                         expense: [],
-                        income: []
+                        income: [],
+                        refund: []
                     });
                     setNewMonthYear('25');
                     setNewMonthMonth('01');
@@ -422,6 +432,45 @@ const addMonth = () => {
                 }
             };
 
+            // 환불 관련 함수들 추가
+            const addRefund = () => {
+                const newRefund = {
+                    id: Date.now(),
+                    date: '',
+                    content: '',
+                    amount: ''
+                };
+                const updated = [...(currentData.refund || []), newRefund];
+                setLocalData({
+                    ...localData,
+                    [activeMonth]: { ...currentData, refund: updated }
+                });
+                db.collection('household').doc(activeMonth).update({ refund: updated });
+                setEditingItems({ ...editingItems, [`refund-${newRefund.id}`]: true });
+            };
+
+            const updateRefund = (id, field, value) => {
+                const updated = (currentData.refund || []).map(item =>
+                    item.id === id ? { ...item, [field]: value } : item
+                );
+                setLocalData({
+                    ...localData,
+                    [activeMonth]: { ...currentData, refund: updated }
+                });
+                saveToFirebase('refund', updated);
+            };
+
+            const deleteRefund = (id) => {
+                if (window.confirm('삭제하시겠습니까?')) {
+                    const updated = (currentData.refund || []).filter(item => item.id !== id);
+                    setLocalData({
+                        ...localData,
+                        [activeMonth]: { ...currentData, refund: updated }
+                    });
+                    db.collection('household').doc(activeMonth).update({ refund: updated });
+                }
+            };
+
             const toggleEdit = (type, id) => {
                 const key = `${type}-${id}`;
                 setEditingItems({ ...editingItems, [key]: !editingItems[key] });
@@ -446,7 +495,11 @@ const addMonth = () => {
             const fixedTotal = calculateTotal(currentData.fixed);
             const expenseTotal = calculateTotal(currentData.expense);
             const incomeTotal = calculateTotal(currentData.income);
-            const balance = incomeTotal - fixedTotal - expenseTotal;
+            const refundTotal = calculateTotal(currentData.refund || []);
+            // 통장잔액 = 수입 + 환불 - 고정지출 - 지출
+            const balance = incomeTotal + refundTotal - fixedTotal - expenseTotal;
+            // 지출합계 = 고정지출 + 지출 - 환불
+            const totalExpenseWithRefund = fixedTotal + expenseTotal - refundTotal;
 
             if (isLoading) {
                 return (
@@ -461,7 +514,7 @@ const addMonth = () => {
 
             return (
                 <div className="min-h-screen bg-gray-50 pb-20">
-<div className="sticky top-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg z-20">
+                    <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg z-20">
                         <div className="px-4 py-4">
                             <div className="flex items-center justify-between mb-3">
                                 <h1 className="text-2xl font-bold">💰 부부 공유 가계부</h1>
@@ -561,14 +614,16 @@ const addMonth = () => {
                             </div>
                             <div className="bg-red-100 rounded-xl p-3 shadow-lg border-2 border-red-200">
                                 <div className="text-xs font-bold mb-1 text-red-800">지출합계</div>
-                                <div className="text-sm font-bold break-words leading-tight text-red-700">{formatNumber(fixedTotal + expenseTotal)}원</div>
+                                <div className="text-sm font-bold break-words leading-tight text-red-700">{formatNumber(totalExpenseWithRefund)}원</div>
                             </div>
                             <div className="bg-blue-100 rounded-xl p-3 shadow-lg border-2 border-blue-200">
                                 <div className="text-xs font-bold mb-1 text-blue-800">수입합계</div>
                                 <div className="text-sm font-bold break-words leading-tight text-blue-700">{formatNumber(incomeTotal)}원</div>
                             </div>
                         </div>
-<div className="bg-white shadow-lg rounded-2xl mb-3 overflow-hidden">
+
+                        {/* 고정지출 섹션 */}
+                        <div className="bg-white shadow-lg rounded-2xl mb-3 overflow-hidden">
                             <button
                                 onClick={() => setIsFixedExpanded(!isFixedExpanded)}
                                 className="w-full px-4 py-3 flex items-center justify-between bg-purple-600 text-white hover:bg-purple-700 transition-colors"
@@ -653,6 +708,7 @@ const addMonth = () => {
                             )}
                         </div>
 
+                        {/* 지출 섹션 */}
                         <div className="bg-white shadow-lg rounded-2xl mb-3 overflow-hidden">
                             <button
                                 onClick={() => setIsExpenseExpanded(!isExpenseExpanded)}
@@ -738,6 +794,7 @@ const addMonth = () => {
                             )}
                         </div>
 
+                        {/* 수입 섹션 */}
                         <div className="bg-white shadow-lg rounded-2xl mb-3 overflow-hidden">
                             <button
                                 onClick={() => setIsIncomeExpanded(!isIncomeExpanded)}
@@ -818,6 +875,92 @@ const addMonth = () => {
                                     >
                                         <Plus size={20} />
                                         수입 추가
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 환불 섹션 */}
+                        <div className="bg-white shadow-lg rounded-2xl mb-3 overflow-hidden">
+                            <button
+                                onClick={() => setIsRefundExpanded(!isRefundExpanded)}
+                                className="w-full px-4 py-3 flex items-center justify-between bg-yellow-600 text-white hover:bg-yellow-700 transition-colors"
+                            >
+                                <span className="text-lg font-bold">💳 환불</span>
+                                {isRefundExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                            </button>
+
+                            {isRefundExpanded && (
+                                <div className="p-3">
+                                    <div className="space-y-2">
+                                        {(currentData.refund || []).length === 0 ? (
+                                            <div className="text-center py-8 text-gray-400 text-sm">
+                                                환불 내역이 없습니다
+                                            </div>
+                                        ) : (
+                                            sortByDate(currentData.refund || [], 'refund').map(item => {
+                                                const isEditing = editingItems[`refund-${item.id}`];
+                                                return (
+                                                    <div key={item.id} className="bg-yellow-50 p-2 rounded-lg border border-yellow-200">
+                                                        <div className="flex gap-1 items-start mb-2">
+                                                            <input
+                                                                type="date"
+                                                                value={item.date || ''}
+                                                                onChange={(e) => updateRefund(item.id, 'date', e.target.value)}
+                                                                className="w-28 px-1 py-2 border rounded text-xs flex-shrink-0"
+                                                                disabled={!isEditing}
+                                                            />
+                                                            <button
+                                                                onClick={() => deleteRefund(item.id)}
+                                                                className="p-2 text-red-500 hover:bg-red-50 rounded flex-shrink-0"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            value={item.content || ''}
+                                                            onChange={(e) => updateRefund(item.id, 'content', e.target.value)}
+                                                            placeholder="내용을 입력하세요"
+                                                            className="w-full px-2 py-2 border rounded text-sm mb-2"
+                                                            disabled={!isEditing}
+                                                        />
+                                                        <div className="flex gap-1 items-center">
+                                                            {isEditing ? (
+                                                                <input
+                                                                    type="number"
+                                                                    value={item.amount || ''}
+                                                                    onChange={(e) => updateRefund(item.id, 'amount', e.target.value)}
+                                                                    placeholder="금액"
+                                                                    className="flex-1 px-2 py-2 border rounded text-sm"
+                                                                />
+                                                            ) : (
+                                                                <div className="flex-1 px-2 py-2 border rounded bg-gray-100 text-xs font-bold text-right">
+                                                                    {formatNumber(item.amount)}원
+                                                                </div>
+                                                            )}
+                                                            <button
+                                                                onClick={() => isEditing ? completeEdit('refund', item.id) : toggleEdit('refund', item.id)}
+                                                                className={`px-4 py-2 rounded font-bold text-xs ${
+                                                                    isEditing 
+                                                                        ? 'bg-green-500 text-white' 
+                                                                        : 'bg-blue-500 text-white'
+                                                                }`}
+                                                            >
+                                                                {isEditing ? '완료' : '수정'}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={addRefund}
+                                        className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-bold"
+                                    >
+                                        <Plus size={20} />
+                                        환불 추가
                                     </button>
                                 </div>
                             )}
