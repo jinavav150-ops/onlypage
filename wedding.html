@@ -672,10 +672,13 @@
                 .filter(item => item.category === 'refund')
                 .reduce((sum, item) => sum + item.amount, 0);
             
-            const balance = income + refunds - expenses;
+            // 환불은 지출에서 차감
+            const totalExpense = expenses - refunds;
+            // 잔액 = 수입 - (지출 - 환불)
+            const balance = income - totalExpense;
 
             document.getElementById('balance').textContent = formatCurrency(balance);
-            document.getElementById('total-expense').textContent = formatCurrency(expenses);
+            document.getElementById('total-expense').textContent = formatCurrency(totalExpense);
             document.getElementById('total-income').textContent = formatCurrency(income);
         }
 
