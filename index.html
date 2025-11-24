@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💑 다솔 ❤️ 호철</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            border-radius: 30px;
+            padding: 40px 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header .subtitle {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .menu-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .menu-item {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            border-radius: 20px;
+            padding: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .menu-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .menu-item:nth-child(2) {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .menu-item:nth-child(3) {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .menu-item:nth-child(4) {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .menu-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .menu-icon {
+            font-size: 50px;
+            line-height: 1;
+        }
+
+        .menu-text {
+            flex: 1;
+            text-align: left;
+        }
+
+        .menu-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .menu-desc {
+            font-size: 14px;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .menu-arrow {
+            font-size: 24px;
+            color: white;
+            opacity: 0.7;
+        }
+
+        .back-button {
+            background: #f3f4f6;
+            border: none;
+            border-radius: 15px;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            font-size: 16px;
+            color: #374151;
+        }
+
+        .back-button:hover {
+            background: #e5e7eb;
+        }
+
+        /* 사진 공유 스타일 */
+        .upload-area {
+            background: white;
+            border: 2px dashed #ddd;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f9fafb;
+        }
+
+        .upload-area.uploading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .upload-area .icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .upload-area input[type="file"] {
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+        }
+
+        .photos-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .photo-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #f5f5f5;
+        }
+
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-delete {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .photo-item:hover .photo-delete {
+            opacity: 1;
+        }
+
+        .loading, .empty-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+        }
+
+        .empty-message .icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .error-message {
+            background: #fee;
+            border: 1px solid #fcc;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #c00;
+        }
+
+        .section-title {
+            font-size: 1.8em;
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 28px;
+            }
+
+            .menu-icon {
+                font-size: 40px;
+            }
+
+            .menu-title {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyDOdbB-ImQ6GuqCX1r4bS_miB5IVjD989Y",
+            authDomain: "dasol-moneybook-2dec7.firebaseapp.com",
+            projectId: "dasol-moneybook-2dec7",
+            storageBucket: "dasol-moneybook-2dec7.firebasestorage.app",
+            messagingSenderId: "448263372546",
+            appId: "1:448263372546:web:67a6508ca09b117e984c1b"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        function App() {
+            const [currentPage, setCurrentPage] = useState('home');
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>💑 다솔 ❤️ 호철</h1>
+                        <p className="subtitle">우리의 행복한 시작을 함께</p>
+                    </div>
+
+                    {currentPage === 'home' && (
+                        <div className="menu-grid">
+                            <button className="menu-item" onClick={() => window.location.href = 'wedding.html'}>
+                                <div className="menu-content">
+                                    <div className="menu-icon">💒</div>
+                                    <div className="menu-text">
+                                        <div className="menu-title">결혼 준비</div>
+                                        <div className="menu-desc">예산 관리 & 체크리스트</div>
+                                    </div>
+                                    <div className="menu-arrow">→</div>
+                                </div>
+                            </button>
+
+                            <button className="menu-item" onClick={() => window.location.href = 'household.html'}>
+                                <div className="menu-content">
+                                    <div className="menu-icon">🏠</div>
+                                    <div className="menu-text">
+                                        <div className="menu-title">가계부</div>
+                                        <div className="menu-desc">월별 수입 & 지출 관리</div>
+                                    </div>
+                                    <div className="menu-arrow">→</div>
+                                </div>
+                            </button>
+
+                            <button className="menu-item" onClick={() => window.location.href = 'honeymoon.html'}>
+                                <div className="menu-content">
+                                    <div className="menu-icon">✈️</div>
+                                    <div className="menu-text">
+                                        <div className="menu-title">신혼여행</div>
+                                        <div className="menu-desc">포르투갈 & 스페인 경비</div>
+                                    </div>
+                                    <div className="menu-arrow">→</div>
+                                </div>
+                            </button>
+
+                            <button className="menu-item" onClick={() => setCurrentPage('photos')}>
+                                <div className="menu-content">
+                                    <div className="menu-icon">📸</div>
+                                    <div className="menu-text">
+                                        <div className="menu-title">사진 공유</div>
+                                        <div className="menu-desc">추억을 함께 나눠요</div>
+                                    </div>
+                                    <div className="menu-arrow">→</div>
+                                </div>
+                            </button>
+                        </div>
+                    )}
+
+                    {currentPage === 'photos' && <PhotoSharing onBack={() => setCurrentPage('home')} />}
+                </div>
+            );
+        }
+
+        function PhotoSharing({ onBack }) {
+            const [photos, setPhotos] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [uploading, setUploading] = useState(false);
+            const [uploadProgress, setUploadProgress] = useState(0);
+            const [uploadStatus, setUploadStatus] = useState('');
+            const [error, setError] = useState(null);
+            const fileInputRef = useRef(null);
+
+            useEffect(() => {
+                loadPhotos();
+            }, []);
+
+            const loadPhotos = () => {
+                const unsubscribe = db.collection('sharedPhotos')
+                    .orderBy('timestamp', 'desc')
+                    .onSnapshot(
+                        (snapshot) => {
+                            const photoArray = snapshot.docs.map(doc => ({
+                                id: doc.id,
+                                ...doc.data()
+                            }));
+                            setPhotos(photoArray);
+                            setLoading(false);
+                        },
+                        (error) => {
+                            console.error('사진 로딩 오류:', error);
+                            setError('사진을 불러올 수 없습니다: ' + error.message);
+                            setLoading(false);
+                        }
+                    );
+
+                return () => unsubscribe();
+            };
+
+            const handleFileSelect = async (e) => {
+                const file = e.target.files[0];
+                
+                if (!file) return;
+
+                if (!file.type.startsWith('image/')) {
+                    alert('이미지 파일만 업로드할 수 있습니다.');
+                    return;
+                }
+
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('파일 크기는 10MB 이하여야 합니다.\n현재 크기: ' + (file.size / 1024 / 1024).toFixed(2) + 'MB');
+                    return;
+                }
+
+                setUploading(true);
+                setError(null);
+                setUploadProgress(0);
+                setUploadStatus('업로드 준비 중...');
+
+                try {
+                    const timestamp = Date.now();
+                    const fileName = `${timestamp}_${file.name}`;
+                    const storageRef = storage.ref(`shared-photos/${fileName}`);
+                    
+                    const uploadTask = storageRef.put(file);
+                    
+                    uploadTask.on('state_changed',
+                        (snapshot) => {
+                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                            setUploadProgress(progress);
+                            setUploadStatus(`업로드 중... ${Math.round(progress)}%`);
+                        },
+                        (error) => {
+                            console.error('업로드 오류:', error);
+                            setError('업로드 실패: ' + error.message);
+                            setUploading(false);
+                        },
+                        async () => {
+                            setUploadStatus('저장 중...');
+                            const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+                            
+                            await db.collection('sharedPhotos').add({
+                                url: downloadURL,
+                                fileName: file.name,
+                                fileSize: file.size,
+                                timestamp: timestamp,
+                                uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                storagePath: `shared-photos/${fileName}`
+                            });
+                            
+                            setUploadStatus('완료! ✨');
+                            
+                            setTimeout(() => {
+                                setUploadProgress(0);
+                                setUploadStatus('');
+                                setUploading(false);
+                            }, 2000);
+
+                            if (fileInputRef.current) {
+                                fileInputRef.current.value = '';
+                            }
+                        }
+                    );
+                } catch (error) {
+                    console.error('업로드 실패:', error);
+                    setError('업로드 실패: ' + error.message);
+                    setUploading(false);
+                }
+            };
+
+            const handleDelete = async (photo) => {
+                if (!confirm('이 사진을 삭제하시겠습니까?')) return;
+
+                try {
+                    if (photo.storagePath) {
+                        const storageRef = storage.ref(photo.storagePath);
+                        await storageRef.delete();
+                    }
+
+                    await db.collection('sharedPhotos').doc(photo.id).delete();
+                } catch (error) {
+                    console.error('삭제 실패:', error);
+                    alert('사진 삭제에 실패했습니다: ' + error.message);
+                }
+            };
+
+            return (
+                <div>
+                    <button className="back-button" onClick={onBack}>
+                        ← 돌아가기
+                    </button>
+
+                    <h2 className="section-title">📸 사진 공유</h2>
+
+                    {error && (
+                        <div className="error-message">
+                            ⚠️ {error}
+                        </div>
+                    )}
+
+                    <div 
+                        className={`upload-area ${uploading ? 'uploading' : ''}`}
+                        onClick={() => !uploading && fileInputRef.current?.click()}
+                    >
+                        <div className="icon">
+                            {uploading ? '⏳' : '📷'}
+                        </div>
+                        <div>
+                            {uploading ? uploadStatus : '사진 추가하기'}
+                        </div>
+                        {uploading && uploadProgress > 0 && (
+                            <div className="progress-bar">
+                                <div className="progress-bar-fill" style={{ width: `${uploadProgress}%` }}></div>
+                            </div>
+                        )}
+                        <div style={{ fontSize: '0.85em', color: '#888', marginTop: '10px' }}>
+                            {uploading ? '' : '클릭하여 사진을 선택하세요 (최대 10MB)'}
+                        </div>
+                        <input 
+                            ref={fileInputRef}
+                            type="file" 
+                            accept="image/*" 
+                            onChange={handleFileSelect}
+                            disabled={uploading}
+                        />
+                    </div>
+
+                    {loading ? (
+                        <div className="loading">사진을 불러오는 중...</div>
+                    ) : photos.length === 0 ? (
+                        <div className="empty-message">
+                            <div className="icon">📷</div>
+                            <div>아직 공유된 사진이 없습니다</div>
+                            <div style={{ fontSize: '0.9em', marginTop: '10px' }}>
+                                첫 번째 사진을 업로드해보세요!
+                            </div>
+                        </div>
+                    ) : (
+                        <div>
+                            <div style={{ textAlign: 'center', color: '#888', marginBottom: '15px', fontSize: '0.9em' }}>
+                                총 {photos.length}장의 사진
+                            </div>
+                            <div className="photos-grid">
+                                {photos.map(photo => (
+                                    <div key={photo.id} className="photo-item">
+                                        <img src={photo.url} alt={photo.fileName || '공유 사진'} />
+                                        <button 
+                                            className="photo-delete"
+                                            onClick={() => handleDelete(photo)}
+                                            title="삭제"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
