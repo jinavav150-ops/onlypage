@@ -3,198 +3,516 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>다솔 ❤️ 호철 - 통합 관리</title>
+    <title>💑 다솔 ❤️ 호철</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #ffeef8 0%, #e8f4ff 100%);
             min-height: 100vh;
+        }
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            color: #ff69b4;
+        }
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #888;
+            font-size: 0.95em;
+        }
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .nav-button {
+            background: white;
+            border: none;
+            border-radius: 20px;
+            padding: 30px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .nav-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        .nav-button.wedding {
+            background: linear-gradient(135deg, #fff5f7 0%, #ffe5ec 100%);
+        }
+        .nav-button.budget {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        }
+        .nav-button.honeymoon {
+            background: linear-gradient(135deg, #fef3e0 0%, #ffeaa7 100%);
+        }
+        .nav-button.photos {
+            background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+            grid-column: 1 / -1;
+        }
+        .nav-button .icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        .nav-button .title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+        .back-button {
+            background: white;
+            border: none;
+            border-radius: 15px;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            font-size: 1em;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .back-button:hover {
+            background: #f5f5f5;
+        }
+        .section-title {
+            font-size: 1.8em;
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+        
+        /* 사진 공유 스타일 */
+        .upload-area {
+            background: white;
+            border: 2px dashed #ddd;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #ff69b4;
+            background: #fff5f9;
+        }
+        .upload-area.uploading {
+            opacity: 0.6;
+            pointer-events: none;
+            border-color: #aaa;
+        }
+        .upload-area .icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        .upload-area input[type="file"] {
+            display: none;
+        }
+        .upload-progress {
+            margin-top: 10px;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .photos-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .photo-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #f5f5f5;
+        }
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .photo-delete {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 1.2em;
             display: flex;
             align-items: center;
             justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .photo-item:hover .photo-delete {
+            opacity: 1;
+        }
+        .loading {
+            text-align: center;
             padding: 20px;
+            color: #888;
         }
-
-        .container {
-            width: 100%;
-            max-width: 500px;
-            background: white;
-            border-radius: 30px;
-            padding: 40px 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-
-        .header {
+        .empty-message {
             text-align: center;
-            margin-bottom: 40px;
+            padding: 60px 20px;
+            color: #888;
         }
-
-        .header h1 {
-            font-size: 32px;
-            margin-bottom: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .empty-message .icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.3;
         }
-
-        .header .subtitle {
-            font-size: 16px;
-            color: #666;
-        }
-
-        .menu-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .menu-item {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            border: none;
-            border-radius: 20px;
-            padding: 30px;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            text-decoration: none;
-            display: block;
-        }
-
-        .menu-item:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-        }
-
-        .menu-item:active {
-            transform: translateY(-2px);
-        }
-
-        .menu-item:nth-child(2) {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        }
-
-        .menu-item:nth-child(3) {
-            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-        }
-
-        .menu-content {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .menu-icon {
-            font-size: 50px;
-            line-height: 1;
-        }
-
-        .menu-text {
-            flex: 1;
-            text-align: left;
-        }
-
-        .menu-title {
-            font-size: 22px;
-            font-weight: 700;
-            color: white;
-            margin-bottom: 5px;
-        }
-
-        .menu-desc {
-            font-size: 14px;
-            color: rgba(255,255,255,0.9);
-        }
-
-        .menu-arrow {
-            font-size: 24px;
-            color: white;
-            opacity: 0.7;
-        }
-
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            color: #999;
-            font-size: 13px;
-        }
-
-        @media (max-width: 480px) {
-            .container {
-                padding: 30px 20px;
-            }
-
-            .header h1 {
-                font-size: 28px;
-            }
-
-            .menu-icon {
-                font-size: 40px;
-            }
-
-            .menu-title {
-                font-size: 20px;
-            }
-
-            .menu-desc {
-                font-size: 13px;
-            }
+        .error-message {
+            background: #fee;
+            border: 1px solid #fcc;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #c00;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>💑 다솔 ❤️ 호철</h1>
-            <p class="subtitle">우리의 행복한 시작을 함께</p>
-        </div>
+    <div id="root"></div>
 
-        <div class="menu-grid">
-            <a href="wedding.html" class="menu-item">
-                <div class="menu-content">
-                    <div class="menu-icon">💒</div>
-                    <div class="menu-text">
-                        <div class="menu-title">결혼 준비</div>
-                        <div class="menu-desc">예산 관리 & 체크리스트</div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyBbH6NL1S1bz7x93v-0kXbEu4KoBiclp48",
+            authDomain: "wedding-planning-c6e24.firebaseapp.com",
+            databaseURL: "https://wedding-planning-c6e24-default-rtdb.firebaseio.com",
+            projectId: "wedding-planning-c6e24",
+            storageBucket: "wedding-planning-c6e24.appspot.com",
+            messagingSenderId: "690587208831",
+            appId: "1:690587208831:web:4a4a1b5e2f3c4d5e6f7g8h"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+
+        const database = firebase.database();
+
+        function App() {
+            const [currentPage, setCurrentPage] = useState('home');
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>💑 다솔 ❤️ 호철</h1>
+                        <p>우리의 행복한 시작을 함께</p>
                     </div>
-                    <div class="menu-arrow">→</div>
-                </div>
-            </a>
 
-            <a href="household.html" class="menu-item">
-                <div class="menu-content">
-                    <div class="menu-icon">🏠</div>
-                    <div class="menu-text">
-                        <div class="menu-title">가계부</div>
-                        <div class="menu-desc">월별 수입 & 지출 관리</div>
+                    {currentPage === 'home' && (
+                        <div className="button-grid">
+                            <button className="nav-button wedding" onClick={() => setCurrentPage('wedding')}>
+                                <div className="icon">💒</div>
+                                <div className="title">결혼 준비</div>
+                            </button>
+                            <button className="nav-button budget" onClick={() => setCurrentPage('budget')}>
+                                <div className="icon">💰</div>
+                                <div className="title">가계부</div>
+                            </button>
+                            <button className="nav-button honeymoon" onClick={() => setCurrentPage('honeymoon')}>
+                                <div className="icon">✈️</div>
+                                <div className="title">신혼여행</div>
+                            </button>
+                            <button className="nav-button photos" onClick={() => setCurrentPage('photos')}>
+                                <div className="icon">📸</div>
+                                <div className="title">사진 공유</div>
+                            </button>
+                        </div>
+                    )}
+
+                    {currentPage === 'photos' && <PhotoSharing onBack={() => setCurrentPage('home')} />}
+                    {currentPage === 'wedding' && <WeddingPage onBack={() => setCurrentPage('home')} />}
+                    {currentPage === 'budget' && <BudgetPage onBack={() => setCurrentPage('home')} />}
+                    {currentPage === 'honeymoon' && <HoneymoonPage onBack={() => setCurrentPage('home')} />}
+                </div>
+            );
+        }
+
+        function PhotoSharing({ onBack }) {
+            const [photos, setPhotos] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [uploading, setUploading] = useState(false);
+            const [uploadProgress, setUploadProgress] = useState('');
+            const [error, setError] = useState(null);
+            const fileInputRef = useRef(null);
+
+            useEffect(() => {
+                console.log('PhotoSharing 컴포넌트 마운트됨');
+                loadPhotos();
+            }, []);
+
+            const loadPhotos = () => {
+                console.log('사진 로딩 시작...');
+                const photosRef = database.ref('sharedPhotos');
+                
+                photosRef.on('value', (snapshot) => {
+                    console.log('Firebase 데이터 수신:', snapshot.val());
+                    const data = snapshot.val();
+                    if (data) {
+                        const photoArray = Object.entries(data).map(([id, photo]) => ({
+                            id,
+                            ...photo
+                        })).sort((a, b) => b.timestamp - a.timestamp);
+                        console.log('로드된 사진:', photoArray.length + '개');
+                        setPhotos(photoArray);
+                    } else {
+                        console.log('저장된 사진 없음');
+                        setPhotos([]);
+                    }
+                    setLoading(false);
+                }, (error) => {
+                    console.error('Firebase 읽기 오류:', error);
+                    setError('사진을 불러올 수 없습니다: ' + error.message);
+                    setLoading(false);
+                });
+
+                return () => photosRef.off();
+            };
+
+            const handleFileSelect = async (e) => {
+                const file = e.target.files[0];
+                console.log('파일 선택됨:', file);
+                
+                if (!file) {
+                    console.log('파일 선택 취소됨');
+                    return;
+                }
+
+                // 이미지 파일 확인
+                if (!file.type.startsWith('image/')) {
+                    alert('이미지 파일만 업로드할 수 있습니다.');
+                    return;
+                }
+
+                // 파일 크기 제한 (1MB)
+                if (file.size > 1 * 1024 * 1024) {
+                    alert('파일 크기는 1MB 이하여야 합니다.\n현재 크기: ' + (file.size / 1024 / 1024).toFixed(2) + 'MB');
+                    return;
+                }
+
+                setUploading(true);
+                setError(null);
+                setUploadProgress('파일 읽는 중...');
+
+                try {
+                    console.log('업로드 프로세스 시작');
+                    
+                    // 이미지를 Base64로 변환
+                    setUploadProgress('이미지 변환 중...');
+                    const reader = new FileReader();
+                    
+                    const base64Data = await new Promise((resolve, reject) => {
+                        reader.onload = (e) => {
+                            console.log('FileReader 완료');
+                            resolve(e.target.result);
+                        };
+                        reader.onerror = (e) => {
+                            console.error('FileReader 오류:', e);
+                            reject(new Error('파일을 읽을 수 없습니다'));
+                        };
+                        reader.onprogress = (e) => {
+                            if (e.lengthComputable) {
+                                const percent = Math.round((e.loaded / e.total) * 100);
+                                console.log('읽기 진행률:', percent + '%');
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                    
+                    console.log('Base64 변환 완료, 길이:', base64Data.length);
+                    setUploadProgress('서버에 저장 중...');
+
+                    // Realtime Database에 저장
+                    const timestamp = Date.now();
+                    const photoRef = database.ref('sharedPhotos').push();
+                    
+                    console.log('Database에 저장 시도...');
+                    await photoRef.set({
+                        url: base64Data,
+                        fileName: file.name,
+                        fileSize: file.size,
+                        timestamp: timestamp,
+                        uploadedAt: new Date().toISOString()
+                    });
+                    
+                    console.log('Database 저장 완료! ID:', photoRef.key);
+                    setUploadProgress('완료!');
+                    
+                    // 성공 메시지
+                    setTimeout(() => {
+                        setUploadProgress('');
+                    }, 2000);
+
+                    // 파일 입력 초기화
+                    if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                    }
+                } catch (error) {
+                    console.error('업로드 실패 상세:', error);
+                    console.error('에러 타입:', error.constructor.name);
+                    console.error('에러 메시지:', error.message);
+                    console.error('에러 스택:', error.stack);
+                    
+                    setError('업로드 실패: ' + error.message);
+                    setUploadProgress('');
+                } finally {
+                    setUploading(false);
+                }
+            };
+
+            const handleDelete = async (photo) => {
+                if (!confirm('이 사진을 삭제하시겠습니까?')) return;
+
+                try {
+                    console.log('사진 삭제 시도:', photo.id);
+                    await database.ref(`sharedPhotos/${photo.id}`).remove();
+                    console.log('삭제 완료');
+                } catch (error) {
+                    console.error('삭제 실패:', error);
+                    alert('사진 삭제에 실패했습니다: ' + error.message);
+                }
+            };
+
+            return (
+                <div>
+                    <button className="back-button" onClick={onBack}>
+                        ← 돌아가기
+                    </button>
+
+                    <h2 className="section-title">📸 사진 공유</h2>
+
+                    {error && (
+                        <div className="error-message">
+                            ⚠️ {error}
+                        </div>
+                    )}
+
+                    <div 
+                        className={`upload-area ${uploading ? 'uploading' : ''}`}
+                        onClick={() => !uploading && fileInputRef.current?.click()}
+                    >
+                        <div className="icon">
+                            {uploading ? '⏳' : '📷'}
+                        </div>
+                        <div>
+                            {uploading ? uploadProgress || '업로드 중...' : '사진 추가하기'}
+                        </div>
+                        <div style={{ fontSize: '0.85em', color: '#888', marginTop: '10px' }}>
+                            {uploading ? '' : '클릭하여 사진을 선택하세요 (최대 1MB)'}
+                        </div>
+                        <input 
+                            ref={fileInputRef}
+                            type="file" 
+                            accept="image/*" 
+                            onChange={handleFileSelect}
+                            disabled={uploading}
+                        />
                     </div>
-                    <div class="menu-arrow">→</div>
-                </div>
-            </a>
 
-            <a href="honeymoon.html" class="menu-item">
-                <div class="menu-content">
-                    <div class="menu-icon">✈️</div>
-                    <div class="menu-text">
-                        <div class="menu-title">신혼여행</div>
-                        <div class="menu-desc">포르투갈 & 스페인 경비</div>
+                    {loading ? (
+                        <div className="loading">사진을 불러오는 중...</div>
+                    ) : photos.length === 0 ? (
+                        <div className="empty-message">
+                            <div className="icon">📷</div>
+                            <div>아직 공유된 사진이 없습니다</div>
+                            <div style={{ fontSize: '0.9em', marginTop: '10px' }}>
+                                첫 번째 사진을 업로드해보세요!
+                            </div>
+                        </div>
+                    ) : (
+                        <div>
+                            <div style={{ textAlign: 'center', color: '#888', marginBottom: '15px', fontSize: '0.9em' }}>
+                                총 {photos.length}장의 사진
+                            </div>
+                            <div className="photos-grid">
+                                {photos.map(photo => (
+                                    <div key={photo.id} className="photo-item">
+                                        <img src={photo.url} alt={photo.fileName || '공유 사진'} />
+                                        <button 
+                                            className="photo-delete"
+                                            onClick={() => handleDelete(photo)}
+                                            title="삭제"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // 기존 페이지 컴포넌트들 (간단한 플레이스홀더)
+        function WeddingPage({ onBack }) {
+            return (
+                <div>
+                    <button className="back-button" onClick={onBack}>← 돌아가기</button>
+                    <h2 className="section-title">💒 결혼 준비</h2>
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#888' }}>
+                        결혼 준비 페이지 내용
                     </div>
-                    <div class="menu-arrow">→</div>
                 </div>
-            </a>
-        </div>
+            );
+        }
 
-        <div class="footer">
-            모든 데이터는 실시간으로 동기화됩니다 ✨
-        </div>
-    </div>
+        function BudgetPage({ onBack }) {
+            return (
+                <div>
+                    <button className="back-button" onClick={onBack}>← 돌아가기</button>
+                    <h2 className="section-title">💰 가계부</h2>
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#888' }}>
+                        가계부 페이지 내용
+                    </div>
+                </div>
+            );
+        }
+
+        function HoneymoonPage({ onBack }) {
+            return (
+                <div>
+                    <button className="back-button" onClick={onBack}>← 돌아가기</button>
+                    <h2 className="section-title">✈️ 신혼여행</h2>
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#888' }}>
+                        신혼여행 페이지 내용
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
 </body>
 </html>
