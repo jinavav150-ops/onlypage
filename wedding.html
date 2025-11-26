@@ -162,6 +162,41 @@
             background: #ffeef8;
             border-radius: 12px;
             border-left: 4px solid #ff69b4;
+            position: relative;
+        }
+
+        .item-order-buttons {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .btn-order {
+            width: 30px;
+            height: 30px;
+            background: #ff69b4;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .btn-order:hover {
+            background: #ff1493;
+        }
+
+        .btn-order:disabled {
+            background: #ccc;
+            cursor: not-allowed;
         }
 
         .item-header {
@@ -214,6 +249,27 @@
 
         .btn-delete:hover {
             background: #c82333;
+        }
+
+        .btn-move {
+            padding: 6px 10px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+
+        .btn-move:hover {
+            background: #5a6268;
+        }
+
+        .move-buttons {
+            display: flex;
+            gap: 5px;
+            margin-right: 8px;
         }
 
         /* 체크리스트 스타일 */
@@ -449,7 +505,13 @@
             <form id="checklist-form">
                 <div class="form-group">
                     <label>날짜</label>
-                    <input type="date" id="checklist-date" required>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="date" id="checklist-date" style="flex: 1;">
+                        <label style="display: flex; align-items: center; gap: 5px; margin: 0; white-space: nowrap;">
+                            <input type="checkbox" id="checklist-date-tbd" onchange="toggleChecklistDate()">
+                            미정
+                        </label>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>내용</label>
@@ -457,7 +519,13 @@
                 </div>
                 <div class="form-group">
                     <label>금액</label>
-                    <input type="number" id="checklist-amount" placeholder="예상 금액을 입력하세요" required>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="number" id="checklist-amount" placeholder="예상 금액을 입력하세요" style="flex: 1;">
+                        <label style="display: flex; align-items: center; gap: 5px; margin: 0; white-space: nowrap;">
+                            <input type="checkbox" id="checklist-amount-tbd" onchange="toggleChecklistAmount()">
+                            미정
+                        </label>
+                    </div>
                 </div>
                 <div class="modal-buttons">
                     <button type="button" class="modal-btn btn-cancel" onclick="closeChecklistModal()">취소</button>
@@ -488,6 +556,25 @@
         let checklistItems = [];
         let editingBudgetId = null;
         let editingChecklistId = null;
+
+        // 체크리스트 날짜/금액 미정 토글 함수 추가
+        window.toggleChecklistDate = function() {
+            const dateInput = document.getElementById('checklist-date');
+            const checkbox = document.getElementById('checklist-date-tbd');
+            dateInput.disabled = checkbox.checked;
+            if (checkbox.checked) {
+                dateInput.value = '';
+            }
+        };
+
+        window.toggleChecklistAmount = function() {
+            const amountInput = document.getElementById('checklist-amount');
+            const checkbox = document.getElementById('checklist-amount-tbd');
+            amountInput.disabled = checkbox.checked;
+            if (checkbox.checked) {
+                amountInput.value = '';
+            }
+        };
 
         // 탭 전환
         window.switchTab = function(tab) {
@@ -558,9 +645,20 @@
             if (!item) return;
 
             editingChecklistId = id;
-            document.getElementById('checklist-date').value = item.date;
+            
+            // 날짜 설정
+            const dateTbd = item.date === 'TBD';
+            document.getElementById('checklist-date-tbd').checked = dateTbd;
+            document.getElementById('checklist-date').disabled = dateTbd;
+            document.getElementById('checklist-date').value = dateTbd ? '' : item.date;
+            
+            // 금액 설정
+            const amountTbd = item.amount === -1;
+            document.getElementById('checklist-amount-tbd').checked = amountTbd;
+            document.getElementById('checklist-amount').disabled = amountTbd;
+            document.getElementById('checklist-amount').value = amountTbd ? '' : item.amount;
+            
             document.getElementById('checklist-description').value = item.description;
-            document.getElementById('checklist-amount').value = item.amount;
             document.querySelector('#checklist-modal .modal-header').textContent = '체크리스트 수정';
             document.getElementById('checklist-modal').style.display = 'block';
         };
@@ -582,12 +680,18 @@
                         amount
                     });
                 } else {
-                    // 추가 모드
+                    // 추가 모드 - 해당 카테고리의 마지막 순서 계산
+                    const categoryItems = budgetItems.filter(item => item.category === currentCategory);
+                    const maxOrder = categoryItems.length > 0 
+                        ? Math.max(...categoryItems.map(item => item.order || 0))
+                        : 0;
+                    
                     await addDoc(collection(db, 'weddingBudget'), {
                         date,
                         description,
                         amount,
                         category: currentCategory,
+                        order: maxOrder + 1,
                         timestamp: new Date()
                     });
                 }
@@ -602,9 +706,21 @@
         document.getElementById('checklist-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const date = document.getElementById('checklist-date').value;
+            const dateTbd = document.getElementById('checklist-date-tbd').checked;
+            const amountTbd = document.getElementById('checklist-amount-tbd').checked;
+            
+            const date = dateTbd ? 'TBD' : document.getElementById('checklist-date').value;
             const description = document.getElementById('checklist-description').value;
-            const amount = parseInt(document.getElementById('checklist-amount').value);
+            const amount = amountTbd ? -1 : parseInt(document.getElementById('checklist-amount').value);
+
+            if (!dateTbd && !date) {
+                alert('날짜를 입력하거나 미정을 선택해주세요.');
+                return;
+            }
+            if (!amountTbd && !amount) {
+                alert('금액을 입력하거나 미정을 선택해주세요.');
+                return;
+            }
 
             try {
                 if (editingChecklistId) {
@@ -615,12 +731,17 @@
                         amount
                     });
                 } else {
-                    // 추가 모드
+                    // 추가 모드 - 마지막 순서 계산
+                    const maxOrder = checklistItems.length > 0 
+                        ? Math.max(...checklistItems.map(item => item.order || 0))
+                        : 0;
+                    
                     await addDoc(collection(db, 'weddingChecklist'), {
                         date,
                         description,
                         amount,
                         checked: false,
+                        order: maxOrder + 1,
                         timestamp: new Date()
                     });
                 }
@@ -630,6 +751,59 @@
                 alert('저장 중 오류가 발생했습니다.');
             }
         });
+
+        // 예산 항목 이동
+        window.moveBudgetItem = async function(id, direction) {
+            const filteredItems = budgetItems.filter(item => item.category === currentCategory);
+            const currentIndex = filteredItems.findIndex(item => item.id === id);
+            
+            if (currentIndex === -1) return;
+            if (direction === 'up' && currentIndex === 0) return;
+            if (direction === 'down' && currentIndex === filteredItems.length - 1) return;
+
+            const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            const currentItem = filteredItems[currentIndex];
+            const targetItem = filteredItems[targetIndex];
+
+            try {
+                // order 값 교환
+                await updateDoc(doc(db, 'weddingBudget', currentItem.id), {
+                    order: targetItem.order
+                });
+                await updateDoc(doc(db, 'weddingBudget', targetItem.id), {
+                    order: currentItem.order
+                });
+            } catch (error) {
+                console.error('Error moving budget item:', error);
+                alert('이동 중 오류가 발생했습니다.');
+            }
+        };
+
+        // 체크리스트 항목 이동
+        window.moveChecklistItem = async function(id, direction) {
+            const currentIndex = checklistItems.findIndex(item => item.id === id);
+            
+            if (currentIndex === -1) return;
+            if (direction === 'up' && currentIndex === 0) return;
+            if (direction === 'down' && currentIndex === checklistItems.length - 1) return;
+
+            const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            const currentItem = checklistItems[currentIndex];
+            const targetItem = checklistItems[targetIndex];
+
+            try {
+                // order 값 교환
+                await updateDoc(doc(db, 'weddingChecklist', currentItem.id), {
+                    order: targetItem.order
+                });
+                await updateDoc(doc(db, 'weddingChecklist', targetItem.id), {
+                    order: currentItem.order
+                });
+            } catch (error) {
+                console.error('Error moving checklist item:', error);
+                alert('이동 중 오류가 발생했습니다.');
+            }
+        };
 
         // 예산 항목 삭제
         window.deleteBudgetItem = async function(id) {
@@ -681,7 +855,7 @@
                 return;
             }
 
-            container.innerHTML = filteredItems.map(item => `
+            container.innerHTML = filteredItems.map((item, index) => `
                 <div class="item">
                     <div class="item-header">
                         <span class="item-date">${item.date}</span>
@@ -689,6 +863,10 @@
                     </div>
                     <div class="item-description">${item.description}</div>
                     <div class="item-actions">
+                        <div class="move-buttons">
+                            ${index > 0 ? `<button class="btn-move" onclick="moveBudgetItem('${item.id}', 'up')">↑</button>` : ''}
+                            ${index < filteredItems.length - 1 ? `<button class="btn-move" onclick="moveBudgetItem('${item.id}', 'down')">↓</button>` : ''}
+                        </div>
                         <button class="btn-delete" onclick="editBudgetItem('${item.id}')">수정</button>
                         <button class="btn-delete" onclick="deleteBudgetItem('${item.id}')">삭제</button>
                     </div>
@@ -705,7 +883,7 @@
                 return;
             }
 
-            container.innerHTML = checklistItems.map(item => `
+            container.innerHTML = checklistItems.map((item, index) => `
                 <div class="checklist-item">
                     <div class="checkbox-wrapper">
                         <input type="checkbox" ${item.checked ? 'checked' : ''} 
@@ -713,11 +891,15 @@
                     </div>
                     <div class="checklist-content">
                         <div class="checklist-header">
-                            <span class="checklist-date">${item.date}</span>
-                            <span class="checklist-amount">${formatCurrency(item.amount)}</span>
+                            <span class="checklist-date">${item.date === 'TBD' ? '미정' : item.date}</span>
+                            <span class="checklist-amount">${item.amount === -1 ? '미정' : formatCurrency(item.amount)}</span>
                         </div>
                         <div class="checklist-description">${item.description}</div>
                         <div class="item-actions">
+                            <div class="move-buttons">
+                                ${index > 0 ? `<button class="btn-move" onclick="moveChecklistItem('${item.id}', 'up')">↑</button>` : ''}
+                                ${index < checklistItems.length - 1 ? `<button class="btn-move" onclick="moveChecklistItem('${item.id}', 'down')">↓</button>` : ''}
+                            </div>
                             <button class="btn-delete" onclick="editChecklistItem('${item.id}')">수정</button>
                             <button class="btn-delete" onclick="deleteChecklistItem('${item.id}')">삭제</button>
                         </div>
@@ -751,7 +933,7 @@
         }
 
         // 예산 항목 실시간 업데이트
-        const budgetQuery = query(collection(db, 'weddingBudget'), orderBy('date', 'desc'));
+        const budgetQuery = query(collection(db, 'weddingBudget'), orderBy('order', 'asc'));
         onSnapshot(budgetQuery, (snapshot) => {
             budgetItems = snapshot.docs.map(doc => ({
                 id: doc.id,
@@ -762,12 +944,19 @@
         });
 
         // 체크리스트 실시간 업데이트
-        const checklistQuery = query(collection(db, 'weddingChecklist'), orderBy('date', 'asc'));
+        const checklistQuery = query(collection(db, 'weddingChecklist'), orderBy('order', 'asc'));
         onSnapshot(checklistQuery, (snapshot) => {
             checklistItems = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
+            // 미정 항목을 위로, 나머지는 날짜 역순(최신순)으로 정렬
+            checklistItems.sort((a, b) => {
+                if (a.date === 'TBD' && b.date !== 'TBD') return -1;
+                if (a.date !== 'TBD' && b.date === 'TBD') return 1;
+                if (a.date === 'TBD' && b.date === 'TBD') return a.order - b.order;
+                return b.date.localeCompare(a.date); // 날짜 역순 (최신순)
+            });
             renderChecklistItems();
         });
 
