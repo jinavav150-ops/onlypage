@@ -272,6 +272,35 @@
             margin-right: 8px;
         }
 
+        .drag-handle {
+            cursor: move;
+            padding: 8px 12px;
+            color: #999;
+            font-size: 18px;
+            user-select: none;
+            touch-action: none;
+        }
+
+        .drag-handle:hover {
+            color: #666;
+        }
+
+        .item.dragging {
+            opacity: 0.5;
+        }
+
+        .item.drag-over {
+            border-top: 3px solid #ff69b4;
+        }
+
+        .checklist-item.dragging {
+            opacity: 0.5;
+        }
+
+        .checklist-item.drag-over {
+            border-top: 3px solid #ff69b4;
+        }
+
         /* 체크리스트 스타일 */
         .checklist-item {
             display: flex;
@@ -752,58 +781,168 @@
             }
         });
 
-        // 예산 항목 이동
-        window.moveBudgetItem = async function(id, direction) {
+        // 예산 항목 드래그 앤 드롭 설정
+        let draggedBudgetElement = null;
+        let draggedBudgetId = null;
+
+        function setupBudgetDragAndDrop() {
+            const items = document.querySelectorAll('#budget-items .item');
+            
+            items.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedBudgetElement = item;
+                    draggedBudgetId = item.dataset.id;
+                    item.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+
+                item.addEventListener('dragend', (e) => {
+                    item.classList.remove('dragging');
+                    items.forEach(i => i.classList.remove('drag-over'));
+                });
+
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    
+                    if (draggedBudgetElement !== item) {
+                        item.classList.add('drag-over');
+                    }
+                });
+
+                item.addEventListener('dragleave', (e) => {
+                    item.classList.remove('drag-over');
+                });
+
+                item.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    item.classList.remove('drag-over');
+                    
+                    if (draggedBudgetElement === item) return;
+
+                    const targetId = item.dataset.id;
+                    await reorderBudgetItems(draggedBudgetId, targetId);
+                });
+            });
+        }
+
+        async function reorderBudgetItems(draggedId, targetId) {
             const filteredItems = budgetItems.filter(item => item.category === currentCategory);
-            const currentIndex = filteredItems.findIndex(item => item.id === id);
-            
-            if (currentIndex === -1) return;
-            if (direction === 'up' && currentIndex === 0) return;
-            if (direction === 'down' && currentIndex === filteredItems.length - 1) return;
+            const draggedIndex = filteredItems.findIndex(item => item.id === draggedId);
+            const targetIndex = filteredItems.findIndex(item => item.id === targetId);
 
-            const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-            const currentItem = filteredItems[currentIndex];
-            const targetItem = filteredItems[targetIndex];
+            if (draggedIndex === -1 || targetIndex === -1) return;
 
+            // order 값 재계산
+            const newOrder = [];
+            filteredItems.forEach((item, index) => {
+                if (index === draggedIndex) return; // 드래그된 항목은 건너뛰기
+                if (index === targetIndex) {
+                    if (draggedIndex < targetIndex) {
+                        newOrder.push(item);
+                        newOrder.push(filteredItems[draggedIndex]);
+                    } else {
+                        newOrder.push(filteredItems[draggedIndex]);
+                        newOrder.push(item);
+                    }
+                } else {
+                    newOrder.push(item);
+                }
+            });
+
+            // Firebase에 새로운 order 값 업데이트
             try {
-                // order 값 교환
-                await updateDoc(doc(db, 'weddingBudget', currentItem.id), {
-                    order: targetItem.order
-                });
-                await updateDoc(doc(db, 'weddingBudget', targetItem.id), {
-                    order: currentItem.order
-                });
+                for (let i = 0; i < newOrder.length; i++) {
+                    await updateDoc(doc(db, 'weddingBudget', newOrder[i].id), {
+                        order: i
+                    });
+                }
             } catch (error) {
-                console.error('Error moving budget item:', error);
-                alert('이동 중 오류가 발생했습니다.');
+                console.error('Error reordering budget items:', error);
+                alert('순서 변경 중 오류가 발생했습니다.');
             }
-        };
+        }
 
-        // 체크리스트 항목 이동
-        window.moveChecklistItem = async function(id, direction) {
-            const currentIndex = checklistItems.findIndex(item => item.id === id);
+        // 체크리스트 항목 드래그 앤 드롭 설정
+        let draggedChecklistElement = null;
+        let draggedChecklistId = null;
+
+        function setupChecklistDragAndDrop() {
+            const items = document.querySelectorAll('#checklist-items .checklist-item');
             
-            if (currentIndex === -1) return;
-            if (direction === 'up' && currentIndex === 0) return;
-            if (direction === 'down' && currentIndex === checklistItems.length - 1) return;
+            items.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedChecklistElement = item;
+                    draggedChecklistId = item.dataset.id;
+                    item.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
 
-            const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-            const currentItem = checklistItems[currentIndex];
-            const targetItem = checklistItems[targetIndex];
+                item.addEventListener('dragend', (e) => {
+                    item.classList.remove('dragging');
+                    items.forEach(i => i.classList.remove('drag-over'));
+                });
 
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    
+                    if (draggedChecklistElement !== item) {
+                        item.classList.add('drag-over');
+                    }
+                });
+
+                item.addEventListener('dragleave', (e) => {
+                    item.classList.remove('drag-over');
+                });
+
+                item.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    item.classList.remove('drag-over');
+                    
+                    if (draggedChecklistElement === item) return;
+
+                    const targetId = item.dataset.id;
+                    await reorderChecklistItems(draggedChecklistId, targetId);
+                });
+            });
+        }
+
+        async function reorderChecklistItems(draggedId, targetId) {
+            const draggedIndex = checklistItems.findIndex(item => item.id === draggedId);
+            const targetIndex = checklistItems.findIndex(item => item.id === targetId);
+
+            if (draggedIndex === -1 || targetIndex === -1) return;
+
+            // order 값 재계산
+            const newOrder = [];
+            checklistItems.forEach((item, index) => {
+                if (index === draggedIndex) return;
+                if (index === targetIndex) {
+                    if (draggedIndex < targetIndex) {
+                        newOrder.push(item);
+                        newOrder.push(checklistItems[draggedIndex]);
+                    } else {
+                        newOrder.push(checklistItems[draggedIndex]);
+                        newOrder.push(item);
+                    }
+                } else {
+                    newOrder.push(item);
+                }
+            });
+
+            // Firebase에 새로운 order 값 업데이트
             try {
-                // order 값 교환
-                await updateDoc(doc(db, 'weddingChecklist', currentItem.id), {
-                    order: targetItem.order
-                });
-                await updateDoc(doc(db, 'weddingChecklist', targetItem.id), {
-                    order: currentItem.order
-                });
+                for (let i = 0; i < newOrder.length; i++) {
+                    await updateDoc(doc(db, 'weddingChecklist', newOrder[i].id), {
+                        order: i
+                    });
+                }
             } catch (error) {
-                console.error('Error moving checklist item:', error);
-                alert('이동 중 오류가 발생했습니다.');
+                console.error('Error reordering checklist items:', error);
+                alert('순서 변경 중 오류가 발생했습니다.');
             }
-        };
+        }
 
         // 예산 항목 삭제
         window.deleteBudgetItem = async function(id) {
@@ -856,22 +995,22 @@
             }
 
             container.innerHTML = filteredItems.map((item, index) => `
-                <div class="item">
+                <div class="item" data-id="${item.id}" draggable="true">
                     <div class="item-header">
                         <span class="item-date">${item.date}</span>
                         <span class="item-amount">${formatCurrency(item.amount)}</span>
                     </div>
                     <div class="item-description">${item.description}</div>
                     <div class="item-actions">
-                        <div class="move-buttons">
-                            ${index > 0 ? `<button class="btn-move" onclick="moveBudgetItem('${item.id}', 'up')">↑</button>` : ''}
-                            ${index < filteredItems.length - 1 ? `<button class="btn-move" onclick="moveBudgetItem('${item.id}', 'down')">↓</button>` : ''}
-                        </div>
+                        <span class="drag-handle">⋮⋮</span>
                         <button class="btn-delete" onclick="editBudgetItem('${item.id}')">수정</button>
                         <button class="btn-delete" onclick="deleteBudgetItem('${item.id}')">삭제</button>
                     </div>
                 </div>
             `).join('');
+
+            // 드래그 이벤트 리스너 추가
+            setupBudgetDragAndDrop();
         }
 
         // 체크리스트 렌더링
@@ -884,7 +1023,7 @@
             }
 
             container.innerHTML = checklistItems.map((item, index) => `
-                <div class="checklist-item">
+                <div class="checklist-item" data-id="${item.id}" draggable="true">
                     <div class="checkbox-wrapper">
                         <input type="checkbox" ${item.checked ? 'checked' : ''} 
                                onchange="toggleChecklistItem('${item.id}', this.checked)">
@@ -896,16 +1035,16 @@
                         </div>
                         <div class="checklist-description">${item.description}</div>
                         <div class="item-actions">
-                            <div class="move-buttons">
-                                ${index > 0 ? `<button class="btn-move" onclick="moveChecklistItem('${item.id}', 'up')">↑</button>` : ''}
-                                ${index < checklistItems.length - 1 ? `<button class="btn-move" onclick="moveChecklistItem('${item.id}', 'down')">↓</button>` : ''}
-                            </div>
+                            <span class="drag-handle">⋮⋮</span>
                             <button class="btn-delete" onclick="editChecklistItem('${item.id}')">수정</button>
                             <button class="btn-delete" onclick="deleteChecklistItem('${item.id}')">삭제</button>
                         </div>
                     </div>
                 </div>
             `).join('');
+
+            // 드래그 이벤트 리스너 추가
+            setupChecklistDragAndDrop();
         }
 
         // 요약 정보 업데이트
@@ -933,23 +1072,39 @@
         }
 
         // 예산 항목 실시간 업데이트
-        const budgetQuery = query(collection(db, 'weddingBudget'), orderBy('order', 'asc'));
+        const budgetQuery = query(collection(db, 'weddingBudget'));
         onSnapshot(budgetQuery, (snapshot) => {
             budgetItems = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
+            // order 필드가 없는 항목에 자동으로 추가
+            budgetItems.forEach((item, index) => {
+                if (item.order === undefined) {
+                    item.order = index;
+                    updateDoc(doc(db, 'weddingBudget', item.id), { order: index });
+                }
+            });
+            // 카테고리별로 정렬
+            budgetItems.sort((a, b) => a.order - b.order);
             renderBudgetItems();
             updateSummary();
         });
 
         // 체크리스트 실시간 업데이트
-        const checklistQuery = query(collection(db, 'weddingChecklist'), orderBy('order', 'asc'));
+        const checklistQuery = query(collection(db, 'weddingChecklist'));
         onSnapshot(checklistQuery, (snapshot) => {
             checklistItems = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
+            // order 필드가 없는 항목에 자동으로 추가
+            checklistItems.forEach((item, index) => {
+                if (item.order === undefined) {
+                    item.order = index;
+                    updateDoc(doc(db, 'weddingChecklist', item.id), { order: index });
+                }
+            });
             // 미정 항목을 위로, 나머지는 날짜 역순(최신순)으로 정렬
             checklistItems.sort((a, b) => {
                 if (a.date === 'TBD' && b.date !== 'TBD') return -1;
