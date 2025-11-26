@@ -204,6 +204,18 @@
             cursor: pointer;
         }
 
+        .btn-delete:first-child {
+            background: #ff69b4;
+        }
+
+        .btn-delete:first-child:hover {
+            background: #ff1493;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+        }
+
         /* 체크리스트 스타일 */
         .checklist-item {
             display: flex;
@@ -474,6 +486,8 @@
         let currentCategory = 'expense';
         let budgetItems = [];
         let checklistItems = [];
+        let editingBudgetId = null;
+        let editingChecklistId = null;
 
         // 탭 전환
         window.switchTab = function(tab) {
@@ -499,27 +513,59 @@
 
         // 예산 모달
         window.openBudgetModal = function() {
+            editingBudgetId = null;
             document.getElementById('budget-modal').style.display = 'block';
             document.getElementById('budget-date').valueAsDate = new Date();
+            document.querySelector('#budget-modal .modal-header').textContent = '항목 추가';
         };
 
         window.closeBudgetModal = function() {
             document.getElementById('budget-modal').style.display = 'none';
             document.getElementById('budget-form').reset();
+            editingBudgetId = null;
+        };
+
+        // 예산 항목 수정 모달 열기
+        window.editBudgetItem = function(id) {
+            const item = budgetItems.find(item => item.id === id);
+            if (!item) return;
+
+            editingBudgetId = id;
+            document.getElementById('budget-date').value = item.date;
+            document.getElementById('budget-description').value = item.description;
+            document.getElementById('budget-amount').value = item.amount;
+            document.querySelector('#budget-modal .modal-header').textContent = '항목 수정';
+            document.getElementById('budget-modal').style.display = 'block';
         };
 
         // 체크리스트 모달
         window.openChecklistModal = function() {
+            editingChecklistId = null;
             document.getElementById('checklist-modal').style.display = 'block';
             document.getElementById('checklist-date').valueAsDate = new Date();
+            document.querySelector('#checklist-modal .modal-header').textContent = '체크리스트 추가';
         };
 
         window.closeChecklistModal = function() {
             document.getElementById('checklist-modal').style.display = 'none';
             document.getElementById('checklist-form').reset();
+            editingChecklistId = null;
         };
 
-        // 예산 항목 추가
+        // 체크리스트 항목 수정 모달 열기
+        window.editChecklistItem = function(id) {
+            const item = checklistItems.find(item => item.id === id);
+            if (!item) return;
+
+            editingChecklistId = id;
+            document.getElementById('checklist-date').value = item.date;
+            document.getElementById('checklist-description').value = item.description;
+            document.getElementById('checklist-amount').value = item.amount;
+            document.querySelector('#checklist-modal .modal-header').textContent = '체크리스트 수정';
+            document.getElementById('checklist-modal').style.display = 'block';
+        };
+
+        // 예산 항목 추가/수정
         document.getElementById('budget-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -528,21 +574,31 @@
             const amount = parseInt(document.getElementById('budget-amount').value);
 
             try {
-                await addDoc(collection(db, 'weddingBudget'), {
-                    date,
-                    description,
-                    amount,
-                    category: currentCategory,
-                    timestamp: new Date()
-                });
+                if (editingBudgetId) {
+                    // 수정 모드
+                    await updateDoc(doc(db, 'weddingBudget', editingBudgetId), {
+                        date,
+                        description,
+                        amount
+                    });
+                } else {
+                    // 추가 모드
+                    await addDoc(collection(db, 'weddingBudget'), {
+                        date,
+                        description,
+                        amount,
+                        category: currentCategory,
+                        timestamp: new Date()
+                    });
+                }
                 closeBudgetModal();
             } catch (error) {
-                console.error('Error adding budget item:', error);
-                alert('항목 추가 중 오류가 발생했습니다.');
+                console.error('Error saving budget item:', error);
+                alert('저장 중 오류가 발생했습니다.');
             }
         });
 
-        // 체크리스트 항목 추가
+        // 체크리스트 항목 추가/수정
         document.getElementById('checklist-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -551,17 +607,27 @@
             const amount = parseInt(document.getElementById('checklist-amount').value);
 
             try {
-                await addDoc(collection(db, 'weddingChecklist'), {
-                    date,
-                    description,
-                    amount,
-                    checked: false,
-                    timestamp: new Date()
-                });
+                if (editingChecklistId) {
+                    // 수정 모드
+                    await updateDoc(doc(db, 'weddingChecklist', editingChecklistId), {
+                        date,
+                        description,
+                        amount
+                    });
+                } else {
+                    // 추가 모드
+                    await addDoc(collection(db, 'weddingChecklist'), {
+                        date,
+                        description,
+                        amount,
+                        checked: false,
+                        timestamp: new Date()
+                    });
+                }
                 closeChecklistModal();
             } catch (error) {
-                console.error('Error adding checklist item:', error);
-                alert('체크리스트 추가 중 오류가 발생했습니다.');
+                console.error('Error saving checklist item:', error);
+                alert('저장 중 오류가 발생했습니다.');
             }
         });
 
@@ -623,6 +689,7 @@
                     </div>
                     <div class="item-description">${item.description}</div>
                     <div class="item-actions">
+                        <button class="btn-delete" onclick="editBudgetItem('${item.id}')">수정</button>
                         <button class="btn-delete" onclick="deleteBudgetItem('${item.id}')">삭제</button>
                     </div>
                 </div>
@@ -651,6 +718,7 @@
                         </div>
                         <div class="checklist-description">${item.description}</div>
                         <div class="item-actions">
+                            <button class="btn-delete" onclick="editChecklistItem('${item.id}')">수정</button>
                             <button class="btn-delete" onclick="deleteChecklistItem('${item.id}')">삭제</button>
                         </div>
                     </div>
