@@ -499,6 +499,7 @@
     <!-- 체크리스트 탭 -->
     <div id="checklist-tab" class="tab-content">
         <button class="add-button" onclick="openChecklistModal()">+ 체크리스트 추가</button>
+        <button class="add-button" id="save-checklist-order" style="display: none; background: #28a745;" onclick="saveChecklistOrder()">💾 순서 저장</button>
         <div class="items-list" id="checklist-items"></div>
     </div>
 
@@ -721,6 +722,7 @@
                         amount,
                         category: currentCategory,
                         order: maxOrder + 1,
+                        customOrder: null,
                         timestamp: new Date()
                     });
                 }
@@ -850,11 +852,11 @@
                 }
             });
 
-            // Firebase에 새로운 order 값 업데이트
+            // Firebase에 새로운 customOrder 값 업데이트
             try {
                 for (let i = 0; i < newOrder.length; i++) {
                     await updateDoc(doc(db, 'weddingBudget', newOrder[i].id), {
-                        order: i
+                        customOrder: i
                     });
                 }
             } catch (error) {
@@ -866,6 +868,7 @@
         // 체크리스트 항목 드래그 앤 드롭 설정
         let draggedChecklistElement = null;
         let draggedChecklistId = null;
+        let checklistOrderChanged = false;
 
         function setupChecklistDragAndDrop() {
             const items = document.querySelectorAll('#checklist-items .checklist-item');
@@ -903,46 +906,49 @@
                     if (draggedChecklistElement === item) return;
 
                     const targetId = item.dataset.id;
-                    await reorderChecklistItems(draggedChecklistId, targetId);
+                    reorderChecklistItemsTemp(draggedChecklistId, targetId);
                 });
             });
         }
 
-        async function reorderChecklistItems(draggedId, targetId) {
+        function reorderChecklistItemsTemp(draggedId, targetId) {
             const draggedIndex = checklistItems.findIndex(item => item.id === draggedId);
             const targetIndex = checklistItems.findIndex(item => item.id === targetId);
 
             if (draggedIndex === -1 || targetIndex === -1) return;
 
-            // order 값 재계산
-            const newOrder = [];
-            checklistItems.forEach((item, index) => {
-                if (index === draggedIndex) return;
-                if (index === targetIndex) {
-                    if (draggedIndex < targetIndex) {
-                        newOrder.push(item);
-                        newOrder.push(checklistItems[draggedIndex]);
-                    } else {
-                        newOrder.push(checklistItems[draggedIndex]);
-                        newOrder.push(item);
-                    }
-                } else {
-                    newOrder.push(item);
-                }
-            });
+            // 배열에서 항목 이동 (임시)
+            const [draggedItem] = checklistItems.splice(draggedIndex, 1);
+            checklistItems.splice(targetIndex, 0, draggedItem);
 
-            // Firebase에 새로운 order 값 업데이트
+            // 저장 버튼 표시
+            document.getElementById('save-checklist-order').style.display = 'block';
+            checklistOrderChanged = true;
+
+            // 화면 다시 그리기
+            renderChecklistItems();
+        }
+
+        // 체크리스트 순서 저장
+        window.saveChecklistOrder = async function() {
+            if (!checklistOrderChanged) return;
+
             try {
-                for (let i = 0; i < newOrder.length; i++) {
-                    await updateDoc(doc(db, 'weddingChecklist', newOrder[i].id), {
-                        order: i
+                // 현재 순서대로 customOrder 부여
+                for (let i = 0; i < checklistItems.length; i++) {
+                    await updateDoc(doc(db, 'weddingChecklist', checklistItems[i].id), {
+                        customOrder: i
                     });
                 }
+                
+                document.getElementById('save-checklist-order').style.display = 'none';
+                checklistOrderChanged = false;
+                alert('순서가 저장되었습니다!');
             } catch (error) {
-                console.error('Error reordering checklist items:', error);
-                alert('순서 변경 중 오류가 발생했습니다.');
+                console.error('Error saving checklist order:', error);
+                alert('순서 저장 중 오류가 발생했습니다.');
             }
-        }
+        };
 
         // 예산 항목 삭제
         window.deleteBudgetItem = async function(id) {
@@ -1078,15 +1084,39 @@
                 id: doc.id,
                 ...doc.data()
             }));
-            // order 필드가 없는 항목에 자동으로 추가
+            
+            // order, customOrder 필드 초기화
             budgetItems.forEach((item, index) => {
                 if (item.order === undefined) {
                     item.order = index;
-                    updateDoc(doc(db, 'weddingBudget', item.id), { order: index });
+                }
+                if (item.customOrder === undefined) {
+                    item.customOrder = null;
                 }
             });
+            
             // 카테고리별로 정렬
-            budgetItems.sort((a, b) => a.order - b.order);
+            const categories = ['expense', 'income', 'refund'];
+            categories.forEach(category => {
+                const categoryItems = budgetItems.filter(item => item.category === category);
+                
+                // customOrder가 있는 항목과 없는 항목 분리
+                const withCustomOrder = categoryItems.filter(item => item.customOrder !== null && item.customOrder !== undefined);
+                const withoutCustomOrder = categoryItems.filter(item => item.customOrder === null || item.customOrder === undefined);
+                
+                // customOrder가 있는 항목은 customOrder로 정렬
+                withCustomOrder.sort((a, b) => a.customOrder - b.customOrder);
+                
+                // customOrder가 없는 항목은 날짜 내림차순 (최신 → 과거)
+                withoutCustomOrder.sort((a, b) => b.date.localeCompare(a.date));
+                
+                // 합치기: customOrder 있는 항목들 뒤에 날짜순 항목들
+                const sortedCategory = [...withCustomOrder, ...withoutCustomOrder];
+                
+                // 원본 배열에서 해당 카테고리 항목 교체
+                budgetItems = budgetItems.filter(item => item.category !== category).concat(sortedCategory);
+            });
+            
             renderBudgetItems();
             updateSummary();
         });
@@ -1098,20 +1128,38 @@
                 id: doc.id,
                 ...doc.data()
             }));
-            // order 필드가 없는 항목에 자동으로 추가
+            
+            // order, customOrder 필드 초기화
             checklistItems.forEach((item, index) => {
                 if (item.order === undefined) {
                     item.order = index;
-                    updateDoc(doc(db, 'weddingChecklist', item.id), { order: index });
+                }
+                if (item.customOrder === undefined) {
+                    item.customOrder = null;
                 }
             });
-            // 미정 항목을 위로, 나머지는 날짜 역순(최신순)으로 정렬
-            checklistItems.sort((a, b) => {
+            
+            // customOrder가 있는 항목과 없는 항목 분리
+            const withCustomOrder = checklistItems.filter(item => item.customOrder !== null && item.customOrder !== undefined);
+            const withoutCustomOrder = checklistItems.filter(item => item.customOrder === null || item.customOrder === undefined);
+            
+            // customOrder가 있는 항목은 customOrder로 정렬
+            withCustomOrder.sort((a, b) => a.customOrder - b.customOrder);
+            
+            // customOrder가 없는 항목은 날짜 정렬 (미정 → 최신 → 과거)
+            withoutCustomOrder.sort((a, b) => {
+                // 미정 항목 처리
                 if (a.date === 'TBD' && b.date !== 'TBD') return -1;
                 if (a.date !== 'TBD' && b.date === 'TBD') return 1;
-                if (a.date === 'TBD' && b.date === 'TBD') return a.order - b.order;
-                return b.date.localeCompare(a.date); // 날짜 역순 (최신순)
+                if (a.date === 'TBD' && b.date === 'TBD') return 0;
+                
+                // 날짜 내림차순 (최신 → 과거) - 위로 갈수록 최신
+                return b.date.localeCompare(a.date);
             });
+            
+            // 합치기: customOrder 있는 항목들 뒤에 날짜순 항목들
+            checklistItems = [...withCustomOrder, ...withoutCustomOrder];
+            
             renderChecklistItems();
         });
 
