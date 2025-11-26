@@ -278,7 +278,11 @@
             color: #999;
             font-size: 18px;
             user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
             touch-action: none;
+            -webkit-touch-callout: none;
         }
 
         .drag-handle:hover {
@@ -299,6 +303,18 @@
 
         .checklist-item.drag-over {
             border-top: 3px solid #ff69b4;
+        }
+
+        /* 드래그 중 텍스트 선택 방지 */
+        body.dragging-active {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        body.dragging-active * {
+            cursor: move !important;
         }
 
         /* 체크리스트 스타일 */
@@ -790,15 +806,20 @@
             const items = document.querySelectorAll('#budget-items .item');
             
             items.forEach(item => {
+                const handle = item.querySelector('.drag-handle');
+                
+                // 마우스 드래그 이벤트
                 item.addEventListener('dragstart', (e) => {
                     draggedBudgetElement = item;
                     draggedBudgetId = item.dataset.id;
                     item.classList.add('dragging');
+                    document.body.classList.add('dragging-active');
                     e.dataTransfer.effectAllowed = 'move';
                 });
 
                 item.addEventListener('dragend', (e) => {
                     item.classList.remove('dragging');
+                    document.body.classList.remove('dragging-active');
                     items.forEach(i => i.classList.remove('drag-over'));
                 });
 
@@ -824,6 +845,75 @@
                     const targetId = item.dataset.id;
                     await reorderBudgetItems(draggedBudgetId, targetId);
                 });
+
+                // 터치 이벤트 (모바일용)
+                if (handle) {
+                    let touchStartY = 0;
+                    let touchStartX = 0;
+                    let isDragging = false;
+                    let clonedElement = null;
+
+                    handle.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        isDragging = true;
+                        draggedBudgetElement = item;
+                        draggedBudgetId = item.dataset.id;
+                        
+                        const touch = e.touches[0];
+                        touchStartY = touch.clientY;
+                        touchStartX = touch.clientX;
+                        
+                        item.classList.add('dragging');
+                        document.body.classList.add('dragging-active');
+                    }, { passive: false });
+
+                    handle.addEventListener('touchmove', (e) => {
+                        if (!isDragging) return;
+                        e.preventDefault();
+                        
+                        const touch = e.touches[0];
+                        const currentY = touch.clientY;
+                        
+                        // 터치 위치에 있는 요소 찾기
+                        const elementsAtPoint = document.elementsFromPoint(touch.clientX, currentY);
+                        const targetItem = elementsAtPoint.find(el => 
+                            el.classList.contains('item') && el !== draggedBudgetElement
+                        );
+                        
+                        // 모든 drag-over 제거
+                        items.forEach(i => i.classList.remove('drag-over'));
+                        
+                        // 현재 위치의 아이템에 drag-over 추가
+                        if (targetItem) {
+                            targetItem.classList.add('drag-over');
+                        }
+                    }, { passive: false });
+
+                    handle.addEventListener('touchend', async (e) => {
+                        if (!isDragging) return;
+                        e.preventDefault();
+                        
+                        isDragging = false;
+                        item.classList.remove('dragging');
+                        document.body.classList.remove('dragging-active');
+                        
+                        const touch = e.changedTouches[0];
+                        const elementsAtPoint = document.elementsFromPoint(touch.clientX, touch.clientY);
+                        const targetItem = elementsAtPoint.find(el => 
+                            el.classList.contains('item') && el !== draggedBudgetElement
+                        );
+                        
+                        items.forEach(i => i.classList.remove('drag-over'));
+                        
+                        if (targetItem && targetItem !== draggedBudgetElement) {
+                            const targetId = targetItem.dataset.id;
+                            await reorderBudgetItems(draggedBudgetId, targetId);
+                        }
+                        
+                        draggedBudgetElement = null;
+                        draggedBudgetId = null;
+                    }, { passive: false });
+                }
             });
         }
 
@@ -861,15 +951,20 @@
             const items = document.querySelectorAll('#checklist-items .checklist-item');
             
             items.forEach(item => {
+                const handle = item.querySelector('.drag-handle');
+                
+                // 마우스 드래그 이벤트
                 item.addEventListener('dragstart', (e) => {
                     draggedChecklistElement = item;
                     draggedChecklistId = item.dataset.id;
                     item.classList.add('dragging');
+                    document.body.classList.add('dragging-active');
                     e.dataTransfer.effectAllowed = 'move';
                 });
 
                 item.addEventListener('dragend', (e) => {
                     item.classList.remove('dragging');
+                    document.body.classList.remove('dragging-active');
                     items.forEach(i => i.classList.remove('drag-over'));
                 });
 
@@ -895,6 +990,74 @@
                     const targetId = item.dataset.id;
                     reorderChecklistItemsTemp(draggedChecklistId, targetId);
                 });
+
+                // 터치 이벤트 (모바일용)
+                if (handle) {
+                    let touchStartY = 0;
+                    let touchStartX = 0;
+                    let isDragging = false;
+
+                    handle.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        isDragging = true;
+                        draggedChecklistElement = item;
+                        draggedChecklistId = item.dataset.id;
+                        
+                        const touch = e.touches[0];
+                        touchStartY = touch.clientY;
+                        touchStartX = touch.clientX;
+                        
+                        item.classList.add('dragging');
+                        document.body.classList.add('dragging-active');
+                    }, { passive: false });
+
+                    handle.addEventListener('touchmove', (e) => {
+                        if (!isDragging) return;
+                        e.preventDefault();
+                        
+                        const touch = e.touches[0];
+                        const currentY = touch.clientY;
+                        
+                        // 터치 위치에 있는 요소 찾기
+                        const elementsAtPoint = document.elementsFromPoint(touch.clientX, currentY);
+                        const targetItem = elementsAtPoint.find(el => 
+                            el.classList.contains('checklist-item') && el !== draggedChecklistElement
+                        );
+                        
+                        // 모든 drag-over 제거
+                        items.forEach(i => i.classList.remove('drag-over'));
+                        
+                        // 현재 위치의 아이템에 drag-over 추가
+                        if (targetItem) {
+                            targetItem.classList.add('drag-over');
+                        }
+                    }, { passive: false });
+
+                    handle.addEventListener('touchend', async (e) => {
+                        if (!isDragging) return;
+                        e.preventDefault();
+                        
+                        isDragging = false;
+                        item.classList.remove('dragging');
+                        document.body.classList.remove('dragging-active');
+                        
+                        const touch = e.changedTouches[0];
+                        const elementsAtPoint = document.elementsFromPoint(touch.clientX, touch.clientY);
+                        const targetItem = elementsAtPoint.find(el => 
+                            el.classList.contains('checklist-item') && el !== draggedChecklistElement
+                        );
+                        
+                        items.forEach(i => i.classList.remove('drag-over'));
+                        
+                        if (targetItem && targetItem !== draggedChecklistElement) {
+                            const targetId = targetItem.dataset.id;
+                            await reorderChecklistItemsTemp(draggedChecklistId, targetId);
+                        }
+                        
+                        draggedChecklistElement = null;
+                        draggedChecklistId = null;
+                    }, { passive: false });
+                }
             });
         }
 
