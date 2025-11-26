@@ -499,7 +499,6 @@
     <!-- 체크리스트 탭 -->
     <div id="checklist-tab" class="tab-content">
         <button class="add-button" onclick="openChecklistModal()">+ 체크리스트 추가</button>
-        <button class="add-button" id="save-checklist-order" style="display: none; background: #28a745;" onclick="saveChecklistOrder()">💾 순서 저장</button>
         <div class="items-list" id="checklist-items"></div>
     </div>
 
@@ -835,27 +834,16 @@
 
             if (draggedIndex === -1 || targetIndex === -1) return;
 
-            // order 값 재계산
-            const newOrder = [];
-            filteredItems.forEach((item, index) => {
-                if (index === draggedIndex) return; // 드래그된 항목은 건너뛰기
-                if (index === targetIndex) {
-                    if (draggedIndex < targetIndex) {
-                        newOrder.push(item);
-                        newOrder.push(filteredItems[draggedIndex]);
-                    } else {
-                        newOrder.push(filteredItems[draggedIndex]);
-                        newOrder.push(item);
-                    }
-                } else {
-                    newOrder.push(item);
-                }
-            });
+            // 현재 화면의 모든 항목에 customOrder 부여 (드래그 시작)
+            // 배열에서 항목 이동
+            const reordered = [...filteredItems];
+            const [draggedItem] = reordered.splice(draggedIndex, 1);
+            reordered.splice(targetIndex, 0, draggedItem);
 
-            // Firebase에 새로운 customOrder 값 업데이트
+            // Firebase에 customOrder 업데이트
             try {
-                for (let i = 0; i < newOrder.length; i++) {
-                    await updateDoc(doc(db, 'weddingBudget', newOrder[i].id), {
+                for (let i = 0; i < reordered.length; i++) {
+                    await updateDoc(doc(db, 'weddingBudget', reordered[i].id), {
                         customOrder: i
                     });
                 }
@@ -868,7 +856,6 @@
         // 체크리스트 항목 드래그 앤 드롭 설정
         let draggedChecklistElement = null;
         let draggedChecklistId = null;
-        let checklistOrderChanged = false;
 
         function setupChecklistDragAndDrop() {
             const items = document.querySelectorAll('#checklist-items .checklist-item');
@@ -911,44 +898,29 @@
             });
         }
 
-        function reorderChecklistItemsTemp(draggedId, targetId) {
+        async function reorderChecklistItemsTemp(draggedId, targetId) {
             const draggedIndex = checklistItems.findIndex(item => item.id === draggedId);
             const targetIndex = checklistItems.findIndex(item => item.id === targetId);
 
             if (draggedIndex === -1 || targetIndex === -1) return;
 
-            // 배열에서 항목 이동 (임시)
-            const [draggedItem] = checklistItems.splice(draggedIndex, 1);
-            checklistItems.splice(targetIndex, 0, draggedItem);
+            // 배열에서 항목 이동
+            const reordered = [...checklistItems];
+            const [draggedItem] = reordered.splice(draggedIndex, 1);
+            reordered.splice(targetIndex, 0, draggedItem);
 
-            // 저장 버튼 표시
-            document.getElementById('save-checklist-order').style.display = 'block';
-            checklistOrderChanged = true;
-
-            // 화면 다시 그리기
-            renderChecklistItems();
-        }
-
-        // 체크리스트 순서 저장
-        window.saveChecklistOrder = async function() {
-            if (!checklistOrderChanged) return;
-
+            // Firebase에 즉시 customOrder 업데이트
             try {
-                // 현재 순서대로 customOrder 부여
-                for (let i = 0; i < checklistItems.length; i++) {
-                    await updateDoc(doc(db, 'weddingChecklist', checklistItems[i].id), {
+                for (let i = 0; i < reordered.length; i++) {
+                    await updateDoc(doc(db, 'weddingChecklist', reordered[i].id), {
                         customOrder: i
                     });
                 }
-                
-                document.getElementById('save-checklist-order').style.display = 'none';
-                checklistOrderChanged = false;
-                alert('순서가 저장되었습니다!');
             } catch (error) {
-                console.error('Error saving checklist order:', error);
-                alert('순서 저장 중 오류가 발생했습니다.');
+                console.error('Error reordering checklist items:', error);
+                alert('순서 변경 중 오류가 발생했습니다.');
             }
-        };
+        }
 
         // 예산 항목 삭제
         window.deleteBudgetItem = async function(id) {
