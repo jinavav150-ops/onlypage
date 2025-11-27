@@ -474,8 +474,8 @@
 <body>
     <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
         <a href="index.html" class="back-button" style="margin: 0;">← 메인으로</a>
-        <button class="back-button" style="margin: 0; cursor: pointer; border: 2px solid #ffc0e0;" onclick="undoAction()" id="undo-btn" disabled>↶ 이전</button>
-        <button class="back-button" style="margin: 0; cursor: pointer; border: 2px solid #ffc0e0;" onclick="redoAction()" id="redo-btn" disabled>↷ 다음</button>
+        <button class="back-button" style="margin: 0; cursor: pointer; border: 2px solid #ffc0e0;" onclick="undoAction()" id="undo-btn" disabled>↶ 실행취소</button>
+        <button class="back-button" style="margin: 0; cursor: pointer; border: 2px solid #ffc0e0;" onclick="redoAction()" id="redo-btn" disabled>↷ 재실행</button>
     </div>
     
     <div class="header">
@@ -685,6 +685,15 @@
                 } else {
                     // 새 값으로 변경
                     await updateDoc(doc(db, data.collection, data.id), data.newValue);
+                }
+            } else if (type === 'reorder') {
+                // 순서 변경 복원
+                const orders = isUndo ? data.oldOrders : data.newOrders;
+                
+                for (const [id, order] of Object.entries(orders)) {
+                    await updateDoc(doc(db, data.collection, id), {
+                        customOrder: order
+                    });
                 }
             }
         }
@@ -1041,11 +1050,22 @@
 
             if (draggedIndex === -1 || targetIndex === -1) return;
 
-            // 현재 화면의 모든 항목에 customOrder 부여 (드래그 시작)
+            // 현재 customOrder 값들을 저장 (undo용)
+            const oldOrders = {};
+            filteredItems.forEach(item => {
+                oldOrders[item.id] = item.customOrder;
+            });
+
             // 배열에서 항목 이동
             const reordered = [...filteredItems];
             const [draggedItem] = reordered.splice(draggedIndex, 1);
             reordered.splice(targetIndex, 0, draggedItem);
+
+            // 새로운 customOrder 계산
+            const newOrders = {};
+            reordered.forEach((item, index) => {
+                newOrders[item.id] = index;
+            });
 
             // Firebase에 customOrder 업데이트
             try {
@@ -1054,6 +1074,13 @@
                         customOrder: i
                     });
                 }
+
+                // undo 스택에 저장
+                saveStateToUndo('reorder', {
+                    collection: 'weddingBudget',
+                    oldOrders: oldOrders,
+                    newOrders: newOrders
+                });
             } catch (error) {
                 console.error('Error reordering budget items:', error);
                 alert('순서 변경 중 오류가 발생했습니다.');
@@ -1184,10 +1211,22 @@
 
             if (draggedIndex === -1 || targetIndex === -1) return;
 
+            // 현재 customOrder 값들을 저장 (undo용)
+            const oldOrders = {};
+            checklistItems.forEach(item => {
+                oldOrders[item.id] = item.customOrder;
+            });
+
             // 배열에서 항목 이동
             const reordered = [...checklistItems];
             const [draggedItem] = reordered.splice(draggedIndex, 1);
             reordered.splice(targetIndex, 0, draggedItem);
+
+            // 새로운 customOrder 계산
+            const newOrders = {};
+            reordered.forEach((item, index) => {
+                newOrders[item.id] = index;
+            });
 
             // Firebase에 즉시 customOrder 업데이트
             try {
@@ -1196,6 +1235,13 @@
                         customOrder: i
                     });
                 }
+
+                // undo 스택에 저장
+                saveStateToUndo('reorder', {
+                    collection: 'weddingChecklist',
+                    oldOrders: oldOrders,
+                    newOrders: newOrders
+                });
             } catch (error) {
                 console.error('Error reordering checklist items:', error);
                 alert('순서 변경 중 오류가 발생했습니다.');
