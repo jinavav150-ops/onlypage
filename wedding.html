@@ -461,14 +461,22 @@
             color: #d63384;
             text-decoration: none;
             border-radius: 10px;
-            margin-bottom: 20px;
             border: 2px solid #ffc0e0;
             font-weight: bold;
+        }
+
+        .back-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
     </style>
 </head>
 <body>
-    <a href="index.html" class="back-button">← 메인으로</a>
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
+        <a href="index.html" class="back-button" style="margin: 0;">← 메인으로</a>
+        <button class="back-button" style="margin: 0; cursor: pointer; border: 2px solid #ffc0e0;" onclick="undoAction()" id="undo-btn" disabled>↶ 이전</button>
+        <button class="back-button" style="margin: 0; cursor: pointer; border: 2px solid #ffc0e0;" onclick="redoAction()" id="redo-btn" disabled>↷ 다음</button>
+    </div>
     
     <div class="header">
         <h1>💑 결혼준비 예산관리 & 체크리스트</h1>
@@ -602,6 +610,85 @@
         let editingBudgetId = null;
         let editingChecklistId = null;
 
+        // 실행 취소/재실행 기능
+        let undoStack = [];
+        let redoStack = [];
+        const MAX_UNDO_STACK = 20; // 최대 20개까지 기록
+
+        function saveStateToUndo(action, data) {
+            undoStack.push({ action, data, timestamp: new Date() });
+            if (undoStack.length > MAX_UNDO_STACK) {
+                undoStack.shift(); // 오래된 것 삭제
+            }
+            redoStack = []; // 새 작업 시 redo 스택 초기화
+            updateUndoRedoButtons();
+        }
+
+        function updateUndoRedoButtons() {
+            document.getElementById('undo-btn').disabled = undoStack.length === 0;
+            document.getElementById('redo-btn').disabled = redoStack.length === 0;
+        }
+
+        window.undoAction = async function() {
+            if (undoStack.length === 0) return;
+            
+            const lastAction = undoStack.pop();
+            redoStack.push(lastAction);
+            
+            try {
+                await restoreAction(lastAction, true);
+                updateUndoRedoButtons();
+            } catch (error) {
+                console.error('Undo error:', error);
+                alert('이전으로 되돌리는 중 오류가 발생했습니다.');
+            }
+        };
+
+        window.redoAction = async function() {
+            if (redoStack.length === 0) return;
+            
+            const nextAction = redoStack.pop();
+            undoStack.push(nextAction);
+            
+            try {
+                await restoreAction(nextAction, false);
+                updateUndoRedoButtons();
+            } catch (error) {
+                console.error('Redo error:', error);
+                alert('다음으로 이동하는 중 오류가 발생했습니다.');
+            }
+        };
+
+        async function restoreAction(action, isUndo) {
+            const { action: type, data } = action;
+            
+            if (type === 'add') {
+                if (isUndo) {
+                    // 추가를 취소 = 삭제
+                    await deleteDoc(doc(db, data.collection, data.id));
+                } else {
+                    // 추가 재실행
+                    await addDoc(collection(db, data.collection), data.item);
+                }
+            } else if (type === 'delete') {
+                if (isUndo) {
+                    // 삭제를 취소 = 복원
+                    await addDoc(collection(db, data.collection), data.item);
+                } else {
+                    // 삭제 재실행
+                    await deleteDoc(doc(db, data.collection, data.id));
+                }
+            } else if (type === 'update') {
+                if (isUndo) {
+                    // 이전 값으로 복원
+                    await updateDoc(doc(db, data.collection, data.id), data.oldValue);
+                } else {
+                    // 새 값으로 변경
+                    await updateDoc(doc(db, data.collection, data.id), data.newValue);
+                }
+            }
+        }
+
         // 체크리스트 날짜/금액 미정 토글 함수 추가
         window.toggleChecklistDate = function() {
             const dateInput = document.getElementById('checklist-date');
@@ -719,19 +806,26 @@
             try {
                 if (editingBudgetId) {
                     // 수정 모드
-                    await updateDoc(doc(db, 'weddingBudget', editingBudgetId), {
-                        date,
-                        description,
-                        amount
+                    const oldItem = budgetItems.find(item => item.id === editingBudgetId);
+                    const oldValue = { date: oldItem.date, description: oldItem.description, amount: oldItem.amount };
+                    const newValue = { date, description, amount };
+                    
+                    saveStateToUndo('update', {
+                        collection: 'weddingBudget',
+                        id: editingBudgetId,
+                        oldValue,
+                        newValue
                     });
+                    
+                    await updateDoc(doc(db, 'weddingBudget', editingBudgetId), newValue);
                 } else {
-                    // 추가 모드 - 해당 카테고리의 마지막 순서 계산
+                    // 추가 모드
                     const categoryItems = budgetItems.filter(item => item.category === currentCategory);
                     const maxOrder = categoryItems.length > 0 
                         ? Math.max(...categoryItems.map(item => item.order || 0))
                         : 0;
                     
-                    await addDoc(collection(db, 'weddingBudget'), {
+                    const newItem = {
                         date,
                         description,
                         amount,
@@ -739,6 +833,14 @@
                         order: maxOrder + 1,
                         customOrder: null,
                         timestamp: new Date()
+                    };
+                    
+                    const docRef = await addDoc(collection(db, 'weddingBudget'), newItem);
+                    
+                    saveStateToUndo('add', {
+                        collection: 'weddingBudget',
+                        id: docRef.id,
+                        item: newItem
                     });
                 }
                 closeBudgetModal();
@@ -771,24 +873,39 @@
             try {
                 if (editingChecklistId) {
                     // 수정 모드
-                    await updateDoc(doc(db, 'weddingChecklist', editingChecklistId), {
-                        date,
-                        description,
-                        amount
+                    const oldItem = checklistItems.find(item => item.id === editingChecklistId);
+                    const oldValue = { date: oldItem.date, description: oldItem.description, amount: oldItem.amount };
+                    const newValue = { date, description, amount };
+                    
+                    saveStateToUndo('update', {
+                        collection: 'weddingChecklist',
+                        id: editingChecklistId,
+                        oldValue,
+                        newValue
                     });
+                    
+                    await updateDoc(doc(db, 'weddingChecklist', editingChecklistId), newValue);
                 } else {
-                    // 추가 모드 - 마지막 순서 계산
+                    // 추가 모드
                     const maxOrder = checklistItems.length > 0 
                         ? Math.max(...checklistItems.map(item => item.order || 0))
                         : 0;
                     
-                    await addDoc(collection(db, 'weddingChecklist'), {
+                    const newItem = {
                         date,
                         description,
                         amount,
                         checked: false,
                         order: maxOrder + 1,
                         timestamp: new Date()
+                    };
+                    
+                    const docRef = await addDoc(collection(db, 'weddingChecklist'), newItem);
+                    
+                    saveStateToUndo('add', {
+                        collection: 'weddingChecklist',
+                        id: docRef.id,
+                        item: newItem
                     });
                 }
                 closeChecklistModal();
@@ -1089,6 +1206,14 @@
         window.deleteBudgetItem = async function(id) {
             if (confirm('이 항목을 삭제하시겠습니까?')) {
                 try {
+                    const item = budgetItems.find(item => item.id === id);
+                    
+                    saveStateToUndo('delete', {
+                        collection: 'weddingBudget',
+                        id: id,
+                        item: { ...item }
+                    });
+                    
                     await deleteDoc(doc(db, 'weddingBudget', id));
                 } catch (error) {
                     console.error('Error deleting budget item:', error);
@@ -1101,6 +1226,14 @@
         window.deleteChecklistItem = async function(id) {
             if (confirm('이 항목을 삭제하시겠습니까?')) {
                 try {
+                    const item = checklistItems.find(item => item.id === id);
+                    
+                    saveStateToUndo('delete', {
+                        collection: 'weddingChecklist',
+                        id: id,
+                        item: { ...item }
+                    });
+                    
                     await deleteDoc(doc(db, 'weddingChecklist', id));
                 } catch (error) {
                     console.error('Error deleting checklist item:', error);
