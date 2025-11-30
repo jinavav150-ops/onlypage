@@ -895,7 +895,7 @@
                     
                     await updateDoc(doc(db, 'weddingChecklist', editingChecklistId), newValue);
                 } else {
-                    // 추가 모드
+                    // 추가 모드 - customOrder는 null로 설정하여 자동 날짜순 정렬
                     const maxOrder = checklistItems.length > 0 
                         ? Math.max(...checklistItems.map(item => item.order || 0))
                         : 0;
@@ -906,6 +906,7 @@
                         amount,
                         checked: false,
                         order: maxOrder + 1,
+                        customOrder: null, // null로 설정하여 자동 날짜순 정렬
                         timestamp: new Date()
                     };
                     
