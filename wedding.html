@@ -1425,8 +1425,8 @@
                 // customOrder가 없는 항목은 날짜 내림차순 (최신 → 과거)
                 withoutCustomOrder.sort((a, b) => b.date.localeCompare(a.date));
                 
-                // 합치기: customOrder 있는 항목들 뒤에 날짜순 항목들
-                const sortedCategory = [...withCustomOrder, ...withoutCustomOrder];
+                // 합치기: 날짜순 항목들이 위, customOrder 있는 항목들이 아래
+                const sortedCategory = [...withoutCustomOrder, ...withCustomOrder];
                 
                 // 원본 배열에서 해당 카테고리 항목 교체
                 budgetItems = budgetItems.filter(item => item.category !== category).concat(sortedCategory);
@@ -1472,8 +1472,8 @@
                 return b.date.localeCompare(a.date);
             });
             
-            // 합치기: customOrder 있는 항목들 뒤에 날짜순 항목들
-            checklistItems = [...withCustomOrder, ...withoutCustomOrder];
+            // 합치기: 날짜순 항목들이 위, customOrder 있는 항목들이 아래
+            checklistItems = [...withoutCustomOrder, ...withCustomOrder];
             
             renderChecklistItems();
         });
