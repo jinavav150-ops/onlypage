@@ -514,7 +514,10 @@
         </div>
 
         <!-- 항목 추가 버튼 -->
-        <button class="add-button" onclick="openBudgetModal()">+ 항목 추가</button>
+        <div style="display: flex; gap: 10px;">
+            <button class="add-button" style="flex: 1;" onclick="openBudgetModal()">+ 항목 추가</button>
+            <button class="add-button" style="background: #6c757d; width: auto; padding: 15px 20px;" onclick="resetBudgetOrder()">🔄 정렬 초기화</button>
+        </div>
 
         <!-- 항목 리스트 -->
         <div class="items-list" id="budget-items"></div>
@@ -522,7 +525,10 @@
 
     <!-- 체크리스트 탭 -->
     <div id="checklist-tab" class="tab-content">
-        <button class="add-button" onclick="openChecklistModal()">+ 체크리스트 추가</button>
+        <div style="display: flex; gap: 10px;">
+            <button class="add-button" style="flex: 1;" onclick="openChecklistModal()">+ 체크리스트 추가</button>
+            <button class="add-button" style="background: #6c757d; width: auto; padding: 15px 20px;" onclick="resetChecklistOrder()">🔄 정렬 초기화</button>
+        </div>
         <div class="items-list" id="checklist-items"></div>
     </div>
 
@@ -1051,36 +1057,45 @@
 
             if (draggedIndex === -1 || targetIndex === -1) return;
 
-            // 현재 customOrder 값들을 저장 (undo용)
-            const oldOrders = {};
-            filteredItems.forEach(item => {
-                oldOrders[item.id] = item.customOrder;
-            });
+            // 드래그한 항목의 기존 customOrder 저장
+            const draggedItem = filteredItems[draggedIndex];
+            const oldCustomOrder = draggedItem.customOrder;
 
-            // 배열에서 항목 이동
-            const reordered = [...filteredItems];
-            const [draggedItem] = reordered.splice(draggedIndex, 1);
-            reordered.splice(targetIndex, 0, draggedItem);
-
-            // 새로운 customOrder 계산
-            const newOrders = {};
-            reordered.forEach((item, index) => {
-                newOrders[item.id] = index;
-            });
-
-            // Firebase에 customOrder 업데이트
+            // Firebase에 드래그한 항목만 customOrder 업데이트
             try {
-                for (let i = 0; i < reordered.length; i++) {
-                    await updateDoc(doc(db, 'weddingBudget', reordered[i].id), {
-                        customOrder: i
-                    });
+                // customOrder를 현재 targetIndex 위치 값으로 설정
+                let newCustomOrder;
+                
+                if (targetIndex === 0) {
+                    // 맨 위로 드래그
+                    newCustomOrder = -1;
+                } else {
+                    // target 항목의 customOrder 기준으로 설정
+                    const targetItem = filteredItems[targetIndex];
+                    if (targetItem.customOrder !== null && targetItem.customOrder !== undefined) {
+                        newCustomOrder = targetItem.customOrder;
+                    } else {
+                        // target이 날짜순 항목이면, 드래그한 항목을 고정 항목으로 변환
+                        // 고정 항목들 중 가장 큰 customOrder 찾기
+                        const maxCustomOrder = Math.max(
+                            -1,
+                            ...filteredItems
+                                .filter(item => item.customOrder !== null && item.customOrder !== undefined)
+                                .map(item => item.customOrder)
+                        );
+                        newCustomOrder = maxCustomOrder + 1;
+                    }
                 }
+
+                await updateDoc(doc(db, 'weddingBudget', draggedId), {
+                    customOrder: newCustomOrder
+                });
 
                 // undo 스택에 저장
                 saveStateToUndo('reorder', {
                     collection: 'weddingBudget',
-                    oldOrders: oldOrders,
-                    newOrders: newOrders
+                    oldOrders: { [draggedId]: oldCustomOrder },
+                    newOrders: { [draggedId]: newCustomOrder }
                 });
             } catch (error) {
                 console.error('Error reordering budget items:', error);
@@ -1212,36 +1227,46 @@
 
             if (draggedIndex === -1 || targetIndex === -1) return;
 
-            // 현재 customOrder 값들을 저장 (undo용)
-            const oldOrders = {};
-            checklistItems.forEach(item => {
-                oldOrders[item.id] = item.customOrder;
-            });
+            // 드래그한 항목의 기존 customOrder 저장
+            const draggedItem = checklistItems[draggedIndex];
+            const oldCustomOrder = draggedItem.customOrder;
 
-            // 배열에서 항목 이동
-            const reordered = [...checklistItems];
-            const [draggedItem] = reordered.splice(draggedIndex, 1);
-            reordered.splice(targetIndex, 0, draggedItem);
-
-            // 새로운 customOrder 계산
-            const newOrders = {};
-            reordered.forEach((item, index) => {
-                newOrders[item.id] = index;
-            });
-
-            // Firebase에 즉시 customOrder 업데이트
+            // Firebase에 드래그한 항목만 customOrder 업데이트
             try {
-                for (let i = 0; i < reordered.length; i++) {
-                    await updateDoc(doc(db, 'weddingChecklist', reordered[i].id), {
-                        customOrder: i
-                    });
+                // customOrder를 현재 targetIndex 위치 값으로 설정
+                // 만약 target이 customOrder가 없으면, 적절한 값 계산
+                let newCustomOrder;
+                
+                if (targetIndex === 0) {
+                    // 맨 위로 드래그
+                    newCustomOrder = -1;
+                } else {
+                    // target 항목의 customOrder 기준으로 설정
+                    const targetItem = checklistItems[targetIndex];
+                    if (targetItem.customOrder !== null && targetItem.customOrder !== undefined) {
+                        newCustomOrder = targetItem.customOrder;
+                    } else {
+                        // target이 날짜순 항목이면, 드래그한 항목을 고정 항목으로 변환
+                        // 고정 항목들 중 가장 큰 customOrder 찾기
+                        const maxCustomOrder = Math.max(
+                            -1,
+                            ...checklistItems
+                                .filter(item => item.customOrder !== null && item.customOrder !== undefined)
+                                .map(item => item.customOrder)
+                        );
+                        newCustomOrder = maxCustomOrder + 1;
+                    }
                 }
+
+                await updateDoc(doc(db, 'weddingChecklist', draggedId), {
+                    customOrder: newCustomOrder
+                });
 
                 // undo 스택에 저장
                 saveStateToUndo('reorder', {
                     collection: 'weddingChecklist',
-                    oldOrders: oldOrders,
-                    newOrders: newOrders
+                    oldOrders: { [draggedId]: oldCustomOrder },
+                    newOrders: { [draggedId]: newCustomOrder }
                 });
             } catch (error) {
                 console.error('Error reordering checklist items:', error);
@@ -1297,6 +1322,44 @@
                 });
             } catch (error) {
                 console.error('Error updating checklist item:', error);
+            }
+        };
+
+        // 예산 정렬 초기화 (모든 customOrder를 null로)
+        window.resetBudgetOrder = async function() {
+            if (!confirm('모든 항목을 날짜순으로 다시 정렬하시겠습니까?\n(드래그로 지정한 순서가 모두 초기화됩니다)')) {
+                return;
+            }
+            
+            try {
+                for (const item of budgetItems) {
+                    await updateDoc(doc(db, 'weddingBudget', item.id), {
+                        customOrder: null
+                    });
+                }
+                alert('정렬이 초기화되었습니다!');
+            } catch (error) {
+                console.error('Error resetting budget order:', error);
+                alert('초기화 중 오류가 발생했습니다.');
+            }
+        };
+
+        // 체크리스트 정렬 초기화 (모든 customOrder를 null로)
+        window.resetChecklistOrder = async function() {
+            if (!confirm('모든 항목을 날짜순으로 다시 정렬하시겠습니까?\n(드래그로 지정한 순서가 모두 초기화됩니다)')) {
+                return;
+            }
+            
+            try {
+                for (const item of checklistItems) {
+                    await updateDoc(doc(db, 'weddingChecklist', item.id), {
+                        customOrder: null
+                    });
+                }
+                alert('정렬이 초기화되었습니다!');
+            } catch (error) {
+                console.error('Error resetting checklist order:', error);
+                alert('초기화 중 오류가 발생했습니다.');
             }
         };
 
@@ -1466,7 +1529,13 @@
                 // 미정 항목 처리
                 if (a.date === 'TBD' && b.date !== 'TBD') return -1;
                 if (a.date !== 'TBD' && b.date === 'TBD') return 1;
-                if (a.date === 'TBD' && b.date === 'TBD') return 0;
+                
+                // 둘 다 미정이면 timestamp로 정렬 (최신 추가가 위로)
+                if (a.date === 'TBD' && b.date === 'TBD') {
+                    const aTime = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
+                    const bTime = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
+                    return bTime - aTime; // 최신이 위로
+                }
                 
                 // 날짜 내림차순 (최신 → 과거) - 위로 갈수록 최신
                 return b.date.localeCompare(a.date);
