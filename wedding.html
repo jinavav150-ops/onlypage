@@ -619,14 +619,14 @@
         // 실행 취소/재실행 기능
         let undoStack = [];
         let redoStack = [];
-        const MAX_UNDO_STACK = 20; // 최대 20개까지 기록
+        const MAX_UNDO_STACK = 20;
 
         function saveStateToUndo(action, data) {
             undoStack.push({ action, data, timestamp: new Date() });
             if (undoStack.length > MAX_UNDO_STACK) {
-                undoStack.shift(); // 오래된 것 삭제
+                undoStack.shift();
             }
-            redoStack = []; // 새 작업 시 redo 스택 초기화
+            redoStack = [];
             updateUndoRedoButtons();
         }
 
@@ -670,30 +670,23 @@
             
             if (type === 'add') {
                 if (isUndo) {
-                    // 추가를 취소 = 삭제
                     await deleteDoc(doc(db, data.collection, data.id));
                 } else {
-                    // 추가 재실행
                     await addDoc(collection(db, data.collection), data.item);
                 }
             } else if (type === 'delete') {
                 if (isUndo) {
-                    // 삭제를 취소 = 복원
                     await addDoc(collection(db, data.collection), data.item);
                 } else {
-                    // 삭제 재실행
                     await deleteDoc(doc(db, data.collection, data.id));
                 }
             } else if (type === 'update') {
                 if (isUndo) {
-                    // 이전 값으로 복원
                     await updateDoc(doc(db, data.collection, data.id), data.oldValue);
                 } else {
-                    // 새 값으로 변경
                     await updateDoc(doc(db, data.collection, data.id), data.newValue);
                 }
             } else if (type === 'reorder') {
-                // 순서 변경 복원
                 const orders = isUndo ? data.oldOrders : data.newOrders;
                 
                 for (const [id, order] of Object.entries(orders)) {
@@ -704,7 +697,6 @@
             }
         }
 
-        // 체크리스트 날짜/금액 미정 토글 함수 추가
         window.toggleChecklistDate = function() {
             const dateInput = document.getElementById('checklist-date');
             const checkbox = document.getElementById('checklist-date-tbd');
@@ -723,7 +715,6 @@
             }
         };
 
-        // 탭 전환
         window.switchTab = function(tab) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -737,7 +728,6 @@
             }
         };
 
-        // 카테고리 선택
         window.selectCategory = function(category) {
             currentCategory = category;
             document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
@@ -745,7 +735,6 @@
             renderBudgetItems();
         };
 
-        // 예산 모달
         window.openBudgetModal = function() {
             editingBudgetId = null;
             document.getElementById('budget-modal').style.display = 'block';
@@ -759,7 +748,6 @@
             editingBudgetId = null;
         };
 
-        // 예산 항목 수정 모달 열기
         window.editBudgetItem = function(id) {
             const item = budgetItems.find(item => item.id === id);
             if (!item) return;
@@ -772,7 +760,6 @@
             document.getElementById('budget-modal').style.display = 'block';
         };
 
-        // 체크리스트 모달
         window.openChecklistModal = function() {
             editingChecklistId = null;
             document.getElementById('checklist-modal').style.display = 'block';
@@ -786,20 +773,17 @@
             editingChecklistId = null;
         };
 
-        // 체크리스트 항목 수정 모달 열기
         window.editChecklistItem = function(id) {
             const item = checklistItems.find(item => item.id === id);
             if (!item) return;
 
             editingChecklistId = id;
             
-            // 날짜 설정
             const dateTbd = item.date === 'TBD';
             document.getElementById('checklist-date-tbd').checked = dateTbd;
             document.getElementById('checklist-date').disabled = dateTbd;
             document.getElementById('checklist-date').value = dateTbd ? '' : item.date;
             
-            // 금액 설정
             const amountTbd = item.amount === -1;
             document.getElementById('checklist-amount-tbd').checked = amountTbd;
             document.getElementById('checklist-amount').disabled = amountTbd;
@@ -810,7 +794,6 @@
             document.getElementById('checklist-modal').style.display = 'block';
         };
 
-        // 예산 항목 추가/수정
         document.getElementById('budget-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -820,7 +803,6 @@
 
             try {
                 if (editingBudgetId) {
-                    // 수정 모드
                     const oldItem = budgetItems.find(item => item.id === editingBudgetId);
                     const oldValue = { date: oldItem.date, description: oldItem.description, amount: oldItem.amount };
                     const newValue = { date, description, amount };
@@ -834,7 +816,6 @@
                     
                     await updateDoc(doc(db, 'weddingBudget', editingBudgetId), newValue);
                 } else {
-                    // 추가 모드
                     const categoryItems = budgetItems.filter(item => item.category === currentCategory);
                     const maxOrder = categoryItems.length > 0 
                         ? Math.max(...categoryItems.map(item => item.order || 0))
@@ -865,7 +846,6 @@
             }
         });
 
-        // 체크리스트 항목 추가/수정
         document.getElementById('checklist-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -887,7 +867,6 @@
 
             try {
                 if (editingChecklistId) {
-                    // 수정 모드
                     const oldItem = checklistItems.find(item => item.id === editingChecklistId);
                     const oldValue = { date: oldItem.date, description: oldItem.description, amount: oldItem.amount };
                     const newValue = { date, description, amount };
@@ -901,7 +880,6 @@
                     
                     await updateDoc(doc(db, 'weddingChecklist', editingChecklistId), newValue);
                 } else {
-                    // 추가 모드 - customOrder는 null로 설정하여 자동 날짜순 정렬
                     const maxOrder = checklistItems.length > 0 
                         ? Math.max(...checklistItems.map(item => item.order || 0))
                         : 0;
@@ -912,7 +890,7 @@
                         amount,
                         checked: false,
                         order: maxOrder + 1,
-                        customOrder: null, // null로 설정하여 자동 날짜순 정렬
+                        customOrder: null,
                         timestamp: new Date()
                     };
                     
@@ -931,7 +909,6 @@
             }
         });
 
-        // 예산 항목 드래그 앤 드롭 설정
         let draggedBudgetElement = null;
         let draggedBudgetId = null;
 
@@ -941,7 +918,6 @@
             items.forEach(item => {
                 const handle = item.querySelector('.drag-handle');
                 
-                // 마우스 드래그 이벤트
                 item.addEventListener('dragstart', (e) => {
                     draggedBudgetElement = item;
                     draggedBudgetId = item.dataset.id;
@@ -979,12 +955,10 @@
                     await reorderBudgetItems(draggedBudgetId, targetId);
                 });
 
-                // 터치 이벤트 (모바일용)
                 if (handle) {
                     let touchStartY = 0;
                     let touchStartX = 0;
                     let isDragging = false;
-                    let clonedElement = null;
 
                     handle.addEventListener('touchstart', (e) => {
                         e.preventDefault();
@@ -1007,16 +981,13 @@
                         const touch = e.touches[0];
                         const currentY = touch.clientY;
                         
-                        // 터치 위치에 있는 요소 찾기
                         const elementsAtPoint = document.elementsFromPoint(touch.clientX, currentY);
                         const targetItem = elementsAtPoint.find(el => 
                             el.classList.contains('item') && el !== draggedBudgetElement
                         );
                         
-                        // 모든 drag-over 제거
                         items.forEach(i => i.classList.remove('drag-over'));
                         
-                        // 현재 위치의 아이템에 drag-over 추가
                         if (targetItem) {
                             targetItem.classList.add('drag-over');
                         }
@@ -1057,26 +1028,19 @@
 
             if (draggedIndex === -1 || targetIndex === -1) return;
 
-            // 드래그한 항목의 기존 customOrder 저장
             const draggedItem = filteredItems[draggedIndex];
             const oldCustomOrder = draggedItem.customOrder;
 
-            // Firebase에 드래그한 항목만 customOrder 업데이트
             try {
-                // customOrder를 현재 targetIndex 위치 값으로 설정
                 let newCustomOrder;
                 
                 if (targetIndex === 0) {
-                    // 맨 위로 드래그
                     newCustomOrder = -1;
                 } else {
-                    // target 항목의 customOrder 기준으로 설정
                     const targetItem = filteredItems[targetIndex];
                     if (targetItem.customOrder !== null && targetItem.customOrder !== undefined) {
                         newCustomOrder = targetItem.customOrder;
                     } else {
-                        // target이 날짜순 항목이면, 드래그한 항목을 고정 항목으로 변환
-                        // 고정 항목들 중 가장 큰 customOrder 찾기
                         const maxCustomOrder = Math.max(
                             -1,
                             ...filteredItems
@@ -1091,7 +1055,6 @@
                     customOrder: newCustomOrder
                 });
 
-                // undo 스택에 저장
                 saveStateToUndo('reorder', {
                     collection: 'weddingBudget',
                     oldOrders: { [draggedId]: oldCustomOrder },
@@ -1103,7 +1066,6 @@
             }
         }
 
-        // 체크리스트 항목 드래그 앤 드롭 설정
         let draggedChecklistElement = null;
         let draggedChecklistId = null;
 
@@ -1113,7 +1075,6 @@
             items.forEach(item => {
                 const handle = item.querySelector('.drag-handle');
                 
-                // 마우스 드래그 이벤트
                 item.addEventListener('dragstart', (e) => {
                     draggedChecklistElement = item;
                     draggedChecklistId = item.dataset.id;
@@ -1148,13 +1109,10 @@
                     if (draggedChecklistElement === item) return;
 
                     const targetId = item.dataset.id;
-                    reorderChecklistItemsTemp(draggedChecklistId, targetId);
+                    await reorderChecklistItemsTemp(draggedChecklistId, targetId);
                 });
 
-                // 터치 이벤트 (모바일용)
                 if (handle) {
-                    let touchStartY = 0;
-                    let touchStartX = 0;
                     let isDragging = false;
 
                     handle.addEventListener('touchstart', (e) => {
@@ -1162,10 +1120,6 @@
                         isDragging = true;
                         draggedChecklistElement = item;
                         draggedChecklistId = item.dataset.id;
-                        
-                        const touch = e.touches[0];
-                        touchStartY = touch.clientY;
-                        touchStartX = touch.clientX;
                         
                         item.classList.add('dragging');
                         document.body.classList.add('dragging-active');
@@ -1176,18 +1130,13 @@
                         e.preventDefault();
                         
                         const touch = e.touches[0];
-                        const currentY = touch.clientY;
-                        
-                        // 터치 위치에 있는 요소 찾기
-                        const elementsAtPoint = document.elementsFromPoint(touch.clientX, currentY);
+                        const elementsAtPoint = document.elementsFromPoint(touch.clientX, touch.clientY);
                         const targetItem = elementsAtPoint.find(el => 
                             el.classList.contains('checklist-item') && el !== draggedChecklistElement
                         );
                         
-                        // 모든 drag-over 제거
                         items.forEach(i => i.classList.remove('drag-over'));
                         
-                        // 현재 위치의 아이템에 drag-over 추가
                         if (targetItem) {
                             targetItem.classList.add('drag-over');
                         }
@@ -1222,51 +1171,65 @@
         }
 
         async function reorderChecklistItemsTemp(draggedId, targetId) {
+            // 현재 화면에 보이는 정렬된 순서 그대로 사용
             const draggedIndex = checklistItems.findIndex(item => item.id === draggedId);
             const targetIndex = checklistItems.findIndex(item => item.id === targetId);
 
             if (draggedIndex === -1 || targetIndex === -1) return;
 
-            // 드래그한 항목의 기존 customOrder 저장
             const draggedItem = checklistItems[draggedIndex];
+            const targetItem = checklistItems[targetIndex];
             const oldCustomOrder = draggedItem.customOrder;
 
-            // Firebase에 드래그한 항목만 customOrder 업데이트
             try {
-                // customOrder를 현재 targetIndex 위치 값으로 설정
-                // 만약 target이 customOrder가 없으면, 적절한 값 계산
-                let newCustomOrder;
+                // 드래그한 항목을 target 위치에 정확히 배치
+                const newCustomOrder = targetIndex;
                 
-                if (targetIndex === 0) {
-                    // 맨 위로 드래그
-                    newCustomOrder = -1;
-                } else {
-                    // target 항목의 customOrder 기준으로 설정
-                    const targetItem = checklistItems[targetIndex];
-                    if (targetItem.customOrder !== null && targetItem.customOrder !== undefined) {
-                        newCustomOrder = targetItem.customOrder;
+                // undo를 위한 이전 상태 저장
+                const oldOrders = {};
+                const newOrders = {};
+                
+                // 모든 항목에 customOrder 부여 (현재 화면 순서 그대로)
+                for (let i = 0; i < checklistItems.length; i++) {
+                    const item = checklistItems[i];
+                    
+                    if (item.id === draggedId) {
+                        // 드래그한 항목은 target 위치로
+                        oldOrders[item.id] = oldCustomOrder;
+                        newOrders[item.id] = targetIndex;
+                    } else if (draggedIndex < targetIndex) {
+                        // 아래로 드래그: draggedIndex+1 ~ targetIndex 사이의 항목들을 위로 올림
+                        if (i > draggedIndex && i <= targetIndex) {
+                            oldOrders[item.id] = item.customOrder;
+                            newOrders[item.id] = i - 1;
+                        } else {
+                            oldOrders[item.id] = item.customOrder;
+                            newOrders[item.id] = i;
+                        }
                     } else {
-                        // target이 날짜순 항목이면, 드래그한 항목을 고정 항목으로 변환
-                        // 고정 항목들 중 가장 큰 customOrder 찾기
-                        const maxCustomOrder = Math.max(
-                            -1,
-                            ...checklistItems
-                                .filter(item => item.customOrder !== null && item.customOrder !== undefined)
-                                .map(item => item.customOrder)
-                        );
-                        newCustomOrder = maxCustomOrder + 1;
+                        // 위로 드래그: targetIndex ~ draggedIndex-1 사이의 항목들을 아래로 내림
+                        if (i >= targetIndex && i < draggedIndex) {
+                            oldOrders[item.id] = item.customOrder;
+                            newOrders[item.id] = i + 1;
+                        } else {
+                            oldOrders[item.id] = item.customOrder;
+                            newOrders[item.id] = i;
+                        }
                     }
                 }
-
-                await updateDoc(doc(db, 'weddingChecklist', draggedId), {
-                    customOrder: newCustomOrder
-                });
+                
+                // Firebase 업데이트
+                for (const [id, order] of Object.entries(newOrders)) {
+                    await updateDoc(doc(db, 'weddingChecklist', id), {
+                        customOrder: order
+                    });
+                }
 
                 // undo 스택에 저장
                 saveStateToUndo('reorder', {
                     collection: 'weddingChecklist',
-                    oldOrders: { [draggedId]: oldCustomOrder },
-                    newOrders: { [draggedId]: newCustomOrder }
+                    oldOrders,
+                    newOrders
                 });
             } catch (error) {
                 console.error('Error reordering checklist items:', error);
@@ -1274,7 +1237,6 @@
             }
         }
 
-        // 예산 항목 삭제
         window.deleteBudgetItem = async function(id) {
             if (confirm('이 항목을 삭제하시겠습니까?')) {
                 try {
@@ -1294,7 +1256,6 @@
             }
         };
 
-        // 체크리스트 항목 삭제
         window.deleteChecklistItem = async function(id) {
             if (confirm('이 항목을 삭제하시겠습니까?')) {
                 try {
@@ -1314,7 +1275,6 @@
             }
         };
 
-        // 체크리스트 체크 토글
         window.toggleChecklistItem = async function(id, checked) {
             try {
                 await updateDoc(doc(db, 'weddingChecklist', id), {
@@ -1325,7 +1285,6 @@
             }
         };
 
-        // 예산 정렬 초기화 (모든 customOrder를 null로)
         window.resetBudgetOrder = async function() {
             if (!confirm('모든 항목을 날짜순으로 다시 정렬하시겠습니까?\n(드래그로 지정한 순서가 모두 초기화됩니다)')) {
                 return;
@@ -1344,7 +1303,6 @@
             }
         };
 
-        // 체크리스트 정렬 초기화 (모든 customOrder를 null로)
         window.resetChecklistOrder = async function() {
             if (!confirm('모든 항목을 날짜순으로 다시 정렬하시겠습니까?\n(드래그로 지정한 순서가 모두 초기화됩니다)')) {
                 return;
@@ -1363,12 +1321,10 @@
             }
         };
 
-        // 금액 포맷팅
         function formatCurrency(amount) {
             return amount.toLocaleString('ko-KR') + '원';
         }
 
-        // 예산 항목 렌더링
         function renderBudgetItems() {
             const container = document.getElementById('budget-items');
             const filteredItems = budgetItems.filter(item => item.category === currentCategory);
@@ -1393,11 +1349,9 @@
                 </div>
             `).join('');
 
-            // 드래그 이벤트 리스너 추가
             setupBudgetDragAndDrop();
         }
 
-        // 체크리스트 렌더링
         function renderChecklistItems() {
             const container = document.getElementById('checklist-items');
             
@@ -1427,11 +1381,9 @@
                 </div>
             `).join('');
 
-            // 드래그 이벤트 리스너 추가
             setupChecklistDragAndDrop();
         }
 
-        // 요약 정보 업데이트
         function updateSummary() {
             const expenses = budgetItems
                 .filter(item => item.category === 'expense')
@@ -1445,9 +1397,7 @@
                 .filter(item => item.category === 'refund')
                 .reduce((sum, item) => sum + item.amount, 0);
             
-            // 환불은 지출에서 차감
             const totalExpense = expenses - refunds;
-            // 잔액 = 수입 - (지출 - 환불)
             const balance = income - totalExpense;
 
             document.getElementById('balance').textContent = formatCurrency(balance);
@@ -1455,7 +1405,6 @@
             document.getElementById('total-income').textContent = formatCurrency(income);
         }
 
-        // 예산 항목 실시간 업데이트
         const budgetQuery = query(collection(db, 'weddingBudget'));
         onSnapshot(budgetQuery, (snapshot) => {
             budgetItems = snapshot.docs.map(doc => ({
@@ -1463,7 +1412,6 @@
                 ...doc.data()
             }));
             
-            // order, customOrder 필드 초기화
             budgetItems.forEach((item, index) => {
                 if (item.order === undefined) {
                     item.order = index;
@@ -1473,25 +1421,19 @@
                 }
             });
             
-            // 카테고리별로 정렬
             const categories = ['expense', 'income', 'refund'];
             categories.forEach(category => {
                 const categoryItems = budgetItems.filter(item => item.category === category);
                 
-                // customOrder가 있는 항목과 없는 항목 분리
                 const withCustomOrder = categoryItems.filter(item => item.customOrder !== null && item.customOrder !== undefined);
                 const withoutCustomOrder = categoryItems.filter(item => item.customOrder === null || item.customOrder === undefined);
                 
-                // customOrder가 있는 항목은 customOrder로 정렬
                 withCustomOrder.sort((a, b) => a.customOrder - b.customOrder);
                 
-                // customOrder가 없는 항목은 날짜 내림차순 (최신 → 과거)
                 withoutCustomOrder.sort((a, b) => b.date.localeCompare(a.date));
                 
-                // 합치기: 날짜순 항목들이 위, customOrder 있는 항목들이 아래
                 const sortedCategory = [...withoutCustomOrder, ...withCustomOrder];
                 
-                // 원본 배열에서 해당 카테고리 항목 교체
                 budgetItems = budgetItems.filter(item => item.category !== category).concat(sortedCategory);
             });
             
@@ -1499,7 +1441,6 @@
             updateSummary();
         });
 
-        // 체크리스트 실시간 업데이트
         const checklistQuery = query(collection(db, 'weddingChecklist'));
         onSnapshot(checklistQuery, (snapshot) => {
             checklistItems = snapshot.docs.map(doc => ({
@@ -1507,7 +1448,6 @@
                 ...doc.data()
             }));
             
-            // order, customOrder 필드 초기화
             checklistItems.forEach((item, index) => {
                 if (item.order === undefined) {
                     item.order = index;
@@ -1518,27 +1458,34 @@
             });
             
             // customOrder가 있는 항목과 없는 항목 분리
-            const withCustomOrder = checklistItems.filter(item => item.customOrder !== null && item.customOrder !== undefined);
-            const withoutCustomOrder = checklistItems.filter(item => item.customOrder === null || item.customOrder === undefined);
+            const withCustomOrder = checklistItems.filter(item => 
+                item.customOrder !== null && item.customOrder !== undefined
+            );
+            const withoutCustomOrder = checklistItems.filter(item => 
+                item.customOrder === null || item.customOrder === undefined
+            );
             
             // customOrder가 있는 항목은 customOrder로 정렬
             withCustomOrder.sort((a, b) => a.customOrder - b.customOrder);
             
-            // customOrder가 없는 항목은 날짜 정렬 (미정 → 최신 → 과거)
+            // customOrder가 없는 항목은 날짜 정렬
             withoutCustomOrder.sort((a, b) => {
-                // 미정 항목 처리
-                if (a.date === 'TBD' && b.date !== 'TBD') return -1;
-                if (a.date !== 'TBD' && b.date === 'TBD') return 1;
+                const aTBD = a.date === 'TBD';
+                const bTBD = b.date === 'TBD';
                 
-                // 둘 다 미정이면 timestamp로 정렬 (최신 추가가 위로)
-                if (a.date === 'TBD' && b.date === 'TBD') {
+                // 둘 다 미정인 경우 - timestamp로 정렬 (최신이 위)
+                if (aTBD && bTBD) {
                     const aTime = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
                     const bTime = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
-                    return bTime - aTime; // 최신이 위로
+                    return bTime - aTime;
                 }
                 
-                // 날짜 내림차순 (최신 → 과거) - 위로 갈수록 최신
-                return b.date.localeCompare(a.date);
+                // 하나만 미정인 경우 - 미정이 위로
+                if (aTBD) return -1;
+                if (bTBD) return 1;
+                
+                // 둘 다 날짜가 있는 경우 - 날짜 오름차순 (과거 → 미래)
+                return a.date.localeCompare(b.date);
             });
             
             // 합치기: 날짜순 항목들이 위, customOrder 있는 항목들이 아래
@@ -1547,7 +1494,6 @@
             renderChecklistItems();
         });
 
-        // 모달 외부 클릭 시 닫기
         window.onclick = function(event) {
             if (event.target.classList.contains('modal')) {
                 event.target.style.display = 'none';
