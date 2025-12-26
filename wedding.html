@@ -1420,21 +1420,19 @@
                 }
             });
             
-            // customOrder로 정렬
-            checklistItems.sort((a, b) => {
-                const aHasCustom = a.customOrder !== null && a.customOrder !== undefined;
-                const bHasCustom = b.customOrder !== null && b.customOrder !== undefined;
-                
-                // 둘 다 customOrder가 있으면 customOrder로 정렬
-                if (aHasCustom && bHasCustom) {
-                    return a.customOrder - b.customOrder;
-                }
-                
-                // 하나만 customOrder가 있으면 customOrder 있는 것이 아래로
-                if (aHasCustom) return 1;
-                if (bHasCustom) return -1;
-                
-                // 둘 다 customOrder가 없으면 날짜로 정렬
+            // customOrder가 있는 항목과 없는 항목 분리
+            const withCustomOrder = checklistItems.filter(item => 
+                item.customOrder !== null && item.customOrder !== undefined
+            );
+            const withoutCustomOrder = checklistItems.filter(item => 
+                item.customOrder === null || item.customOrder === undefined
+            );
+            
+            // customOrder가 있는 항목은 customOrder로 정렬
+            withCustomOrder.sort((a, b) => a.customOrder - b.customOrder);
+            
+            // customOrder가 없는 항목은 날짜 정렬
+            withoutCustomOrder.sort((a, b) => {
                 const aTBD = a.date === 'TBD';
                 const bTBD = b.date === 'TBD';
                 
@@ -1452,6 +1450,9 @@
                 // 둘 다 날짜가 있으면 최근 날짜순 (미래 → 과거)
                 return b.date.localeCompare(a.date);
             });
+            
+            // 합치기: customOrder 없는 항목들이 위, customOrder 있는 항목들이 아래
+            checklistItems = [...withoutCustomOrder, ...withCustomOrder];
             
             renderChecklistItems();
         });
