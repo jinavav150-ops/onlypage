@@ -162,41 +162,6 @@
             background: #ffeef8;
             border-radius: 12px;
             border-left: 4px solid #ff69b4;
-            position: relative;
-        }
-
-        .item-order-buttons {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .btn-order {
-            width: 30px;
-            height: 30px;
-            background: #ff69b4;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            font-size: 16px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-        }
-
-        .btn-order:hover {
-            background: #ff1493;
-        }
-
-        .btn-order:disabled {
-            background: #ccc;
-            cursor: not-allowed;
         }
 
         .item-header {
@@ -249,72 +214,6 @@
 
         .btn-delete:hover {
             background: #c82333;
-        }
-
-        .btn-move {
-            padding: 6px 10px;
-            background: #6c757d;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 13px;
-            cursor: pointer;
-            margin-right: 5px;
-        }
-
-        .btn-move:hover {
-            background: #5a6268;
-        }
-
-        .move-buttons {
-            display: flex;
-            gap: 5px;
-            margin-right: 8px;
-        }
-
-        .drag-handle {
-            cursor: move;
-            padding: 8px 12px;
-            color: #999;
-            font-size: 18px;
-            user-select: none;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            touch-action: none;
-            -webkit-touch-callout: none;
-        }
-
-        .drag-handle:hover {
-            color: #666;
-        }
-
-        .item.dragging {
-            opacity: 0.5;
-        }
-
-        .item.drag-over {
-            border-top: 3px solid #ff69b4;
-        }
-
-        .checklist-item.dragging {
-            opacity: 0.5;
-        }
-
-        .checklist-item.drag-over {
-            border-top: 3px solid #ff69b4;
-        }
-
-        /* 드래그 중 텍스트 선택 방지 */
-        body.dragging-active {
-            user-select: none;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-        }
-
-        body.dragging-active * {
-            cursor: move !important;
         }
 
         /* 체크리스트 스타일 */
@@ -514,10 +413,7 @@
         </div>
 
         <!-- 항목 추가 버튼 -->
-        <div style="display: flex; gap: 10px;">
-            <button class="add-button" style="flex: 1;" onclick="openBudgetModal()">+ 항목 추가</button>
-            <button class="add-button" style="background: #6c757d; width: auto; padding: 15px 20px;" onclick="resetBudgetOrder()">🔄 정렬 초기화</button>
-        </div>
+        <button class="add-button" onclick="openBudgetModal()">+ 항목 추가</button>
 
         <!-- 항목 리스트 -->
         <div class="items-list" id="budget-items"></div>
@@ -525,10 +421,7 @@
 
     <!-- 체크리스트 탭 -->
     <div id="checklist-tab" class="tab-content">
-        <div style="display: flex; gap: 10px;">
-            <button class="add-button" style="flex: 1;" onclick="openChecklistModal()">+ 체크리스트 추가</button>
-            <button class="add-button" style="background: #dc3545; width: auto; padding: 15px 20px;" onclick="resetAllChecklistOrders()">🔄 정렬 초기화 (1회)</button>
-        </div>
+        <button class="add-button" onclick="openChecklistModal()">+ 체크리스트 추가</button>
         <div class="items-list" id="checklist-items"></div>
     </div>
 
@@ -596,7 +489,7 @@
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
-        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, updateDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, updateDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyBKpRb8lfrYaY42gNhZ4S1_xvPLjjJiXg8",
@@ -686,14 +579,6 @@
                 } else {
                     await updateDoc(doc(db, data.collection, data.id), data.newValue);
                 }
-            } else if (type === 'reorder') {
-                const orders = isUndo ? data.oldOrders : data.newOrders;
-                
-                for (const [id, order] of Object.entries(orders)) {
-                    await updateDoc(doc(db, data.collection, id), {
-                        customOrder: order
-                    });
-                }
             }
         }
 
@@ -764,12 +649,18 @@
             editingChecklistId = null;
             document.getElementById('checklist-modal').style.display = 'block';
             document.getElementById('checklist-date').valueAsDate = new Date();
+            document.getElementById('checklist-date').disabled = false;
+            document.getElementById('checklist-date-tbd').checked = false;
+            document.getElementById('checklist-amount').disabled = false;
+            document.getElementById('checklist-amount-tbd').checked = false;
             document.querySelector('#checklist-modal .modal-header').textContent = '체크리스트 추가';
         };
 
         window.closeChecklistModal = function() {
             document.getElementById('checklist-modal').style.display = 'none';
             document.getElementById('checklist-form').reset();
+            document.getElementById('checklist-date').disabled = false;
+            document.getElementById('checklist-amount').disabled = false;
             editingChecklistId = null;
         };
 
@@ -816,18 +707,11 @@
                     
                     await updateDoc(doc(db, 'weddingBudget', editingBudgetId), newValue);
                 } else {
-                    const categoryItems = budgetItems.filter(item => item.category === currentCategory);
-                    const maxOrder = categoryItems.length > 0 
-                        ? Math.max(...categoryItems.map(item => item.order || 0))
-                        : 0;
-                    
                     const newItem = {
                         date,
                         description,
                         amount,
                         category: currentCategory,
-                        order: maxOrder + 1,
-                        customOrder: null,
                         timestamp: new Date()
                     };
                     
@@ -860,7 +744,7 @@
                 alert('날짜를 입력하거나 미정을 선택해주세요.');
                 return;
             }
-            if (!amountTbd && !amount) {
+            if (!amountTbd && !amount && amount !== 0) {
                 alert('금액을 입력하거나 미정을 선택해주세요.');
                 return;
             }
@@ -880,17 +764,11 @@
                     
                     await updateDoc(doc(db, 'weddingChecklist', editingChecklistId), newValue);
                 } else {
-                    const maxOrder = checklistItems.length > 0 
-                        ? Math.max(...checklistItems.map(item => item.order || 0))
-                        : 0;
-                    
                     const newItem = {
                         date,
                         description,
                         amount,
                         checked: false,
-                        order: maxOrder + 1,
-                        customOrder: null,
                         timestamp: new Date()
                     };
                     
@@ -908,317 +786,6 @@
                 alert('저장 중 오류가 발생했습니다.');
             }
         });
-
-        let draggedBudgetElement = null;
-        let draggedBudgetId = null;
-
-        function setupBudgetDragAndDrop() {
-            const items = document.querySelectorAll('#budget-items .item');
-            
-            items.forEach(item => {
-                const handle = item.querySelector('.drag-handle');
-                
-                item.addEventListener('dragstart', (e) => {
-                    draggedBudgetElement = item;
-                    draggedBudgetId = item.dataset.id;
-                    item.classList.add('dragging');
-                    document.body.classList.add('dragging-active');
-                    e.dataTransfer.effectAllowed = 'move';
-                });
-
-                item.addEventListener('dragend', (e) => {
-                    item.classList.remove('dragging');
-                    document.body.classList.remove('dragging-active');
-                    items.forEach(i => i.classList.remove('drag-over'));
-                });
-
-                item.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    
-                    if (draggedBudgetElement !== item) {
-                        item.classList.add('drag-over');
-                    }
-                });
-
-                item.addEventListener('dragleave', (e) => {
-                    item.classList.remove('drag-over');
-                });
-
-                item.addEventListener('drop', async (e) => {
-                    e.preventDefault();
-                    item.classList.remove('drag-over');
-                    
-                    if (draggedBudgetElement === item) return;
-
-                    const targetId = item.dataset.id;
-                    await reorderBudgetItems(draggedBudgetId, targetId);
-                });
-
-                if (handle) {
-                    let touchStartY = 0;
-                    let touchStartX = 0;
-                    let isDragging = false;
-
-                    handle.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
-                        isDragging = true;
-                        draggedBudgetElement = item;
-                        draggedBudgetId = item.dataset.id;
-                        
-                        const touch = e.touches[0];
-                        touchStartY = touch.clientY;
-                        touchStartX = touch.clientX;
-                        
-                        item.classList.add('dragging');
-                        document.body.classList.add('dragging-active');
-                    }, { passive: false });
-
-                    handle.addEventListener('touchmove', (e) => {
-                        if (!isDragging) return;
-                        e.preventDefault();
-                        
-                        const touch = e.touches[0];
-                        const currentY = touch.clientY;
-                        
-                        const elementsAtPoint = document.elementsFromPoint(touch.clientX, currentY);
-                        const targetItem = elementsAtPoint.find(el => 
-                            el.classList.contains('item') && el !== draggedBudgetElement
-                        );
-                        
-                        items.forEach(i => i.classList.remove('drag-over'));
-                        
-                        if (targetItem) {
-                            targetItem.classList.add('drag-over');
-                        }
-                    }, { passive: false });
-
-                    handle.addEventListener('touchend', async (e) => {
-                        if (!isDragging) return;
-                        e.preventDefault();
-                        
-                        isDragging = false;
-                        item.classList.remove('dragging');
-                        document.body.classList.remove('dragging-active');
-                        
-                        const touch = e.changedTouches[0];
-                        const elementsAtPoint = document.elementsFromPoint(touch.clientX, touch.clientY);
-                        const targetItem = elementsAtPoint.find(el => 
-                            el.classList.contains('item') && el !== draggedBudgetElement
-                        );
-                        
-                        items.forEach(i => i.classList.remove('drag-over'));
-                        
-                        if (targetItem && targetItem !== draggedBudgetElement) {
-                            const targetId = targetItem.dataset.id;
-                            await reorderBudgetItems(draggedBudgetId, targetId);
-                        }
-                        
-                        draggedBudgetElement = null;
-                        draggedBudgetId = null;
-                    }, { passive: false });
-                }
-            });
-        }
-
-        async function reorderBudgetItems(draggedId, targetId) {
-            const filteredItems = budgetItems.filter(item => item.category === currentCategory);
-            const draggedIndex = filteredItems.findIndex(item => item.id === draggedId);
-            const targetIndex = filteredItems.findIndex(item => item.id === targetId);
-
-            if (draggedIndex === -1 || targetIndex === -1) return;
-
-            const draggedItem = filteredItems[draggedIndex];
-            const oldCustomOrder = draggedItem.customOrder;
-
-            try {
-                let newCustomOrder;
-                
-                if (targetIndex === 0) {
-                    newCustomOrder = -1;
-                } else {
-                    const targetItem = filteredItems[targetIndex];
-                    if (targetItem.customOrder !== null && targetItem.customOrder !== undefined) {
-                        newCustomOrder = targetItem.customOrder;
-                    } else {
-                        const maxCustomOrder = Math.max(
-                            -1,
-                            ...filteredItems
-                                .filter(item => item.customOrder !== null && item.customOrder !== undefined)
-                                .map(item => item.customOrder)
-                        );
-                        newCustomOrder = maxCustomOrder + 1;
-                    }
-                }
-
-                await updateDoc(doc(db, 'weddingBudget', draggedId), {
-                    customOrder: newCustomOrder
-                });
-
-                saveStateToUndo('reorder', {
-                    collection: 'weddingBudget',
-                    oldOrders: { [draggedId]: oldCustomOrder },
-                    newOrders: { [draggedId]: newCustomOrder }
-                });
-            } catch (error) {
-                console.error('Error reordering budget items:', error);
-                alert('순서 변경 중 오류가 발생했습니다.');
-            }
-        }
-
-        let draggedChecklistElement = null;
-        let draggedChecklistId = null;
-
-        function setupChecklistDragAndDrop() {
-            const items = document.querySelectorAll('#checklist-items .checklist-item');
-            
-            items.forEach(item => {
-                const handle = item.querySelector('.drag-handle');
-                
-                item.addEventListener('dragstart', (e) => {
-                    draggedChecklistElement = item;
-                    draggedChecklistId = item.dataset.id;
-                    item.classList.add('dragging');
-                    document.body.classList.add('dragging-active');
-                    e.dataTransfer.effectAllowed = 'move';
-                });
-
-                item.addEventListener('dragend', (e) => {
-                    item.classList.remove('dragging');
-                    document.body.classList.remove('dragging-active');
-                    items.forEach(i => i.classList.remove('drag-over'));
-                });
-
-                item.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    
-                    if (draggedChecklistElement !== item) {
-                        item.classList.add('drag-over');
-                    }
-                });
-
-                item.addEventListener('dragleave', (e) => {
-                    item.classList.remove('drag-over');
-                });
-
-                item.addEventListener('drop', async (e) => {
-                    e.preventDefault();
-                    item.classList.remove('drag-over');
-                    
-                    if (draggedChecklistElement === item) return;
-
-                    const targetId = item.dataset.id;
-                    await reorderChecklistItems(draggedChecklistId, targetId);
-                });
-
-                if (handle) {
-                    let isDragging = false;
-
-                    handle.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
-                        isDragging = true;
-                        draggedChecklistElement = item;
-                        draggedChecklistId = item.dataset.id;
-                        
-                        item.classList.add('dragging');
-                        document.body.classList.add('dragging-active');
-                    }, { passive: false });
-
-                    handle.addEventListener('touchmove', (e) => {
-                        if (!isDragging) return;
-                        e.preventDefault();
-                        
-                        const touch = e.touches[0];
-                        const elementsAtPoint = document.elementsFromPoint(touch.clientX, touch.clientY);
-                        const targetItem = elementsAtPoint.find(el => 
-                            el.classList.contains('checklist-item') && el !== draggedChecklistElement
-                        );
-                        
-                        items.forEach(i => i.classList.remove('drag-over'));
-                        
-                        if (targetItem) {
-                            targetItem.classList.add('drag-over');
-                        }
-                    }, { passive: false });
-
-                    handle.addEventListener('touchend', async (e) => {
-                        if (!isDragging) return;
-                        e.preventDefault();
-                        
-                        isDragging = false;
-                        item.classList.remove('dragging');
-                        document.body.classList.remove('dragging-active');
-                        
-                        const touch = e.changedTouches[0];
-                        const elementsAtPoint = document.elementsFromPoint(touch.clientX, touch.clientY);
-                        const targetItem = elementsAtPoint.find(el => 
-                            el.classList.contains('checklist-item') && el !== draggedChecklistElement
-                        );
-                        
-                        items.forEach(i => i.classList.remove('drag-over'));
-                        
-                        if (targetItem && targetItem !== draggedChecklistElement) {
-                            const targetId = targetItem.dataset.id;
-                            await reorderChecklistItems(draggedChecklistId, targetId);
-                        }
-                        
-                        draggedChecklistElement = null;
-                        draggedChecklistId = null;
-                    }, { passive: false });
-                }
-            });
-        }
-
-        async function reorderChecklistItems(draggedId, targetId) {
-            // 현재 표시된 정렬 상태 기준으로 인덱스 찾기
-            const draggedIndex = checklistItems.findIndex(item => item.id === draggedId);
-            const targetIndex = checklistItems.findIndex(item => item.id === targetId);
-
-            if (draggedIndex === -1 || targetIndex === -1) return;
-
-            const draggedItem = checklistItems[draggedIndex];
-            
-            // undo를 위한 모든 항목의 이전 상태 저장
-            const oldOrders = {};
-            checklistItems.forEach(item => {
-                oldOrders[item.id] = item.customOrder;
-            });
-
-            try {
-                // 새로운 순서 계산
-                const newOrders = {};
-                
-                // 전체 리스트 복사
-                const reorderedItems = [...checklistItems];
-                
-                // 드래그한 항목을 제거하고 타겟 위치에 삽입
-                reorderedItems.splice(draggedIndex, 1);
-                reorderedItems.splice(targetIndex, 0, draggedItem);
-                
-                // 모든 항목에 새로운 customOrder 부여
-                reorderedItems.forEach((item, index) => {
-                    newOrders[item.id] = index;
-                });
-                
-                // Firebase 업데이트
-                for (const [id, order] of Object.entries(newOrders)) {
-                    await updateDoc(doc(db, 'weddingChecklist', id), {
-                        customOrder: order
-                    });
-                }
-
-                // undo 스택에 저장
-                saveStateToUndo('reorder', {
-                    collection: 'weddingChecklist',
-                    oldOrders,
-                    newOrders
-                });
-            } catch (error) {
-                console.error('Error reordering checklist items:', error);
-                alert('순서 변경 중 오류가 발생했습니다.');
-            }
-        }
 
         window.deleteBudgetItem = async function(id) {
             if (confirm('이 항목을 삭제하시겠습니까?')) {
@@ -1268,85 +835,80 @@
             }
         };
 
-        window.resetBudgetOrder = async function() {
-            if (!confirm('모든 항목을 날짜순으로 다시 정렬하시겠습니까?\n(드래그로 지정한 순서가 모두 초기화됩니다)')) {
-                return;
-            }
-            
-            try {
-                for (const item of budgetItems) {
-                    await updateDoc(doc(db, 'weddingBudget', item.id), {
-                        customOrder: null
-                    });
-                }
-                alert('정렬이 초기화되었습니다!');
-            } catch (error) {
-                console.error('Error resetting budget order:', error);
-                alert('초기화 중 오류가 발생했습니다.');
-            }
-        };
-
-        window.resetAllChecklistOrders = async function() {
-            if (!confirm('⚠️ 모든 체크리스트 항목을 날짜순으로 초기화합니다.\n\n미정 항목 → 최신 날짜순(12월→3월)으로 정렬됩니다.\n\n계속하시겠습니까?')) {
-                return;
-            }
-            
-            try {
-                let count = 0;
-                for (const item of checklistItems) {
-                    await updateDoc(doc(db, 'weddingChecklist', item.id), {
-                        customOrder: null
-                    });
-                    count++;
-                }
-                alert(`정렬이 초기화되었습니다! (${count}개 항목)\n\n순서: 미정 항목 → 최신 날짜순`);
-            } catch (error) {
-                console.error('Error resetting checklist order:', error);
-                alert('초기화 중 오류가 발생했습니다.');
-            }
-        };
-
         function formatCurrency(amount) {
             return amount.toLocaleString('ko-KR') + '원';
+        }
+
+        // 자동 정렬 함수: 날짜 내림차순 (최신이 위)
+        function sortByDateDesc(items) {
+            return [...items].sort((a, b) => {
+                // 날짜 비교 (내림차순: 최신 날짜가 위)
+                return b.date.localeCompare(a.date);
+            });
+        }
+
+        // 체크리스트 자동 정렬: 미정이 최상단, 나머지는 날짜 내림차순
+        function sortChecklistItems(items) {
+            return [...items].sort((a, b) => {
+                const aTBD = a.date === 'TBD';
+                const bTBD = b.date === 'TBD';
+                
+                // 미정 항목은 항상 최상단
+                if (aTBD && !bTBD) return -1;
+                if (!aTBD && bTBD) return 1;
+                
+                // 둘 다 미정이면 timestamp로 정렬 (최신순)
+                if (aTBD && bTBD) {
+                    const aTime = a.timestamp?.toMillis ? a.timestamp.toMillis() : (a.timestamp?.getTime ? a.timestamp.getTime() : 0);
+                    const bTime = b.timestamp?.toMillis ? b.timestamp.toMillis() : (b.timestamp?.getTime ? b.timestamp.getTime() : 0);
+                    return bTime - aTime;
+                }
+                
+                // 둘 다 날짜가 있으면 최근 날짜순 (내림차순)
+                return b.date.localeCompare(a.date);
+            });
         }
 
         function renderBudgetItems() {
             const container = document.getElementById('budget-items');
             const filteredItems = budgetItems.filter(item => item.category === currentCategory);
             
-            if (filteredItems.length === 0) {
+            // 날짜 내림차순 정렬
+            const sortedItems = sortByDateDesc(filteredItems);
+            
+            if (sortedItems.length === 0) {
                 container.innerHTML = '<div class="no-items">등록된 항목이 없습니다.</div>';
                 return;
             }
 
-            container.innerHTML = filteredItems.map((item, index) => `
-                <div class="item" data-id="${item.id}" draggable="true">
+            container.innerHTML = sortedItems.map((item) => `
+                <div class="item" data-id="${item.id}">
                     <div class="item-header">
                         <span class="item-date">${item.date}</span>
                         <span class="item-amount">${formatCurrency(item.amount)}</span>
                     </div>
                     <div class="item-description">${item.description}</div>
                     <div class="item-actions">
-                        <span class="drag-handle">⋮⋮</span>
                         <button class="btn-delete" onclick="editBudgetItem('${item.id}')">수정</button>
                         <button class="btn-delete" onclick="deleteBudgetItem('${item.id}')">삭제</button>
                     </div>
                 </div>
             `).join('');
-
-            setupBudgetDragAndDrop();
         }
 
         function renderChecklistItems() {
             const container = document.getElementById('checklist-items');
             
-            if (checklistItems.length === 0) {
+            // 자동 정렬: 미정 최상단, 나머지 날짜 내림차순
+            const sortedItems = sortChecklistItems(checklistItems);
+            
+            if (sortedItems.length === 0) {
                 container.innerHTML = '<div class="no-items">등록된 체크리스트가 없습니다.</div>';
                 return;
             }
 
-            container.innerHTML = checklistItems.map((item, index) => `
-                <div class="checklist-item" data-id="${item.id}" draggable="true">
+            container.innerHTML = sortedItems.map((item) => `
+                <div class="checklist-item" data-id="${item.id}">
                     <div class="checkbox-wrapper">
                         <input type="checkbox" ${item.checked ? 'checked' : ''} 
                                onchange="toggleChecklistItem('${item.id}', this.checked)">
@@ -1358,15 +920,12 @@
                         </div>
                         <div class="checklist-description">${item.description}</div>
                         <div class="item-actions">
-                            <span class="drag-handle">⋮⋮</span>
                             <button class="btn-delete" onclick="editChecklistItem('${item.id}')">수정</button>
                             <button class="btn-delete" onclick="deleteChecklistItem('${item.id}')">삭제</button>
                         </div>
                     </div>
                 </div>
             `).join('');
-
-            setupChecklistDragAndDrop();
         }
 
         function updateSummary() {
@@ -1390,37 +949,13 @@
             document.getElementById('total-income').textContent = formatCurrency(income);
         }
 
+        // Firebase 데이터 리스너
         const budgetQuery = query(collection(db, 'weddingBudget'));
         onSnapshot(budgetQuery, (snapshot) => {
             budgetItems = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            
-            budgetItems.forEach((item, index) => {
-                if (item.order === undefined) {
-                    item.order = index;
-                }
-                if (item.customOrder === undefined) {
-                    item.customOrder = null;
-                }
-            });
-            
-            const categories = ['expense', 'income', 'refund'];
-            categories.forEach(category => {
-                const categoryItems = budgetItems.filter(item => item.category === category);
-                
-                const withCustomOrder = categoryItems.filter(item => item.customOrder !== null && item.customOrder !== undefined);
-                const withoutCustomOrder = categoryItems.filter(item => item.customOrder === null || item.customOrder === undefined);
-                
-                withCustomOrder.sort((a, b) => a.customOrder - b.customOrder);
-                
-                withoutCustomOrder.sort((a, b) => b.date.localeCompare(a.date));
-                
-                const sortedCategory = [...withoutCustomOrder, ...withCustomOrder];
-                
-                budgetItems = budgetItems.filter(item => item.category !== category).concat(sortedCategory);
-            });
             
             renderBudgetItems();
             updateSummary();
@@ -1432,50 +967,6 @@
                 id: doc.id,
                 ...doc.data()
             }));
-            
-            // 기본값 설정
-            checklistItems.forEach((item, index) => {
-                if (item.order === undefined) {
-                    item.order = index;
-                }
-                if (item.customOrder === undefined) {
-                    item.customOrder = null;
-                }
-            });
-            
-            // customOrder가 있는 항목과 없는 항목 분리
-            const withCustomOrder = checklistItems.filter(item => 
-                item.customOrder !== null && item.customOrder !== undefined
-            );
-            const withoutCustomOrder = checklistItems.filter(item => 
-                item.customOrder === null || item.customOrder === undefined
-            );
-            
-            // customOrder가 있는 항목은 customOrder로 정렬
-            withCustomOrder.sort((a, b) => a.customOrder - b.customOrder);
-            
-            // customOrder가 없는 항목은 날짜 정렬
-            withoutCustomOrder.sort((a, b) => {
-                const aTBD = a.date === 'TBD';
-                const bTBD = b.date === 'TBD';
-                
-                // 미정 항목은 항상 최상단
-                if (aTBD && !bTBD) return -1;
-                if (!aTBD && bTBD) return 1;
-                
-                // 둘 다 미정이면 timestamp로 정렬 (최신순)
-                if (aTBD && bTBD) {
-                    const aTime = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
-                    const bTime = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
-                    return bTime - aTime;
-                }
-                
-                // 둘 다 날짜가 있으면 최근 날짜순 (미래 → 과거)
-                return b.date.localeCompare(a.date);
-            });
-            
-            // 합치기: customOrder 없는 항목들이 위, customOrder 있는 항목들이 아래
-            checklistItems = [...withoutCustomOrder, ...withCustomOrder];
             
             renderChecklistItems();
         });
