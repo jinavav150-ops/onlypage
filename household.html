@@ -212,7 +212,7 @@
                         monthsList.sort((a, b) => {
                             const [aYear, aMonth] = a.replace('년', '-').replace('월', '').split('-');
                             const [bYear, bMonth] = b.replace('년', '-').replace('월', '').split('-');
-                            return parseInt(aYear + aMonth) - parseInt(bYear + bMonth);
+                            return parseInt(bYear + bMonth) - parseInt(aYear + aMonth);
                         });
 
                         setMonths(monthsList);
@@ -224,7 +224,7 @@
                             if (savedMonth && monthsList.includes(savedMonth)) {
                                 setActiveMonth(savedMonth);
                             } else {
-                                setActiveMonth(monthsList[monthsList.length - 1]);
+                                setActiveMonth(monthsList[0]);
                             }
                         }
                         
