@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>💰 다솔, 호철 부자되기 프로젝트</title>
+    <title>�뮥 �ㅼ넄, �몄쿋 遺��먮릺湲� �꾨줈�앺듃</title>
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -79,7 +79,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useCallback } = React;
         
-        // Firebase 초기화
+        // Firebase 珥덇린��
         const firebaseConfig = {
             apiKey: "AIzaSyCqFjwBKOKRMVkSNOhVeFbl0M0yNfKj7TM",
             authDomain: "dasol-moneybook-2dec7.firebaseapp.com",
@@ -94,39 +94,42 @@
         }
         const db = firebase.firestore();
         
-        // ==================== 메인 앱 ====================
+        // ==================== 硫붿씤 �� ====================
         function SavingProject() {
-            // 계좌(탭) 목록
+            // 怨꾩쥖(��) 紐⑸줉
             const [accounts, setAccounts] = useState([]);
             const [activeAccount, setActiveAccount] = useState('');
             const [isLoading, setIsLoading] = useState(true);
             
-            // 각 계좌별 데이터
+            // 媛� 怨꾩쥖蹂� �곗씠�� (紐⑤뱺 怨꾩쥖)
             const [accountData, setAccountData] = useState({});
             
-            // UI 상태
-            const [expandedSection, setExpandedSection] = useState(null); // 'principal', 'interest', 'memo'
+            // UI �곹깭
+            const [expandedSection, setExpandedSection] = useState(null);
             const [showAddAccount, setShowAddAccount] = useState(false);
             const [newAccountName, setNewAccountName] = useState('');
             const [showSettings, setShowSettings] = useState(false);
             
-            // 추가 폼 상태
-            const [showAddForm, setShowAddForm] = useState(null); // 'principal' or 'interest'
+            // 異붽� �� �곹깭
+            const [showAddForm, setShowAddForm] = useState(null);
             const [addFormData, setAddFormData] = useState({ date: '', amount: '', memo: '' });
             
-            // 편집 상태
+            // �몄쭛 �곹깭
             const [editingItem, setEditingItem] = useState(null);
             const [editFormData, setEditFormData] = useState({ date: '', amount: '', memo: '' });
             
-            // 메모 편집
+            // 硫붾え �몄쭛
             const [memoText, setMemoText] = useState('');
             const [isMemoEditing, setIsMemoEditing] = useState(false);
             const [memoBackup, setMemoBackup] = useState('');
             
-            // Firestore 컬렉션
+            // Firestore 而щ젆��
             const COLLECTION = 'saving_project';
             
-            // ========== 데이터 로드 ==========
+            // 紐⑤뱺 怨꾩쥖 �곗씠�� 援щ룆 由ъ뒪�� 愿�由�
+            const [accountListeners, setAccountListeners] = useState({});
+            
+            // ========== 怨꾩쥖 紐⑸줉 濡쒕뱶 ==========
             useEffect(() => {
                 const unsubscribe = db.collection(COLLECTION).doc('accounts').onSnapshot((doc) => {
                     if (doc.exists) {
@@ -134,7 +137,6 @@
                         const accs = data.list || [];
                         setAccounts(accs);
                         
-                        // 마지막 선택 계좌 복원
                         const lastActive = localStorage.getItem('saving_active_account');
                         if (lastActive && accs.includes(lastActive)) {
                             setActiveAccount(lastActive);
@@ -142,8 +144,7 @@
                             setActiveAccount(accs[0]);
                         }
                     } else {
-                        // 초기 계좌 생성
-                        const defaultAccounts = ['결혼자금남은거', '비상금', '비상금2'];
+                        const defaultAccounts = ['寃고샎�먭툑�⑥�嫄�', '鍮꾩긽湲�', '鍮꾩긽湲�2'];
                         db.collection(COLLECTION).doc('accounts').set({ list: defaultAccounts });
                         setAccounts(defaultAccounts);
                         setActiveAccount(defaultAccounts[0]);
@@ -154,46 +155,76 @@
                 return () => unsubscribe();
             }, []);
             
-            // 활성 계좌 데이터 로드
+            // ========== 紐⑤뱺 怨꾩쥖 �곗씠�� 援щ룆 (珥앺빀怨� 怨꾩궛��) ==========
             useEffect(() => {
-                if (!activeAccount) return;
+                // 湲곗〈 由ъ뒪�� �뺣━
+                Object.values(accountListeners).forEach(unsub => unsub());
                 
-                localStorage.setItem('saving_active_account', activeAccount);
-                
-                const docId = activeAccount.replace(/[\/\\]/g, '_');
-                const unsubscribe = db.collection(COLLECTION).doc(docId).onSnapshot((doc) => {
-                    if (doc.exists) {
-                        const data = doc.data();
-                        setAccountData(prev => ({ ...prev, [activeAccount]: data }));
-                        setMemoText(data.memo || '');
-                    } else {
-                        const emptyData = { principal: [], interest: [], memo: '' };
-                        setAccountData(prev => ({ ...prev, [activeAccount]: emptyData }));
-                        setMemoText('');
-                    }
+                const newListeners = {};
+                accounts.forEach(accName => {
+                    const docId = accName.replace(/[\/\\]/g, '_');
+                    const unsub = db.collection(COLLECTION).doc(docId).onSnapshot((doc) => {
+                        if (doc.exists) {
+                            const data = doc.data();
+                            setAccountData(prev => ({ ...prev, [accName]: data }));
+                            if (accName === activeAccount) {
+                                setMemoText(data.memo || '');
+                            }
+                        } else {
+                            const emptyData = { principal: [], interest: [], expense: [], memo: '' };
+                            setAccountData(prev => ({ ...prev, [accName]: emptyData }));
+                            if (accName === activeAccount) {
+                                setMemoText('');
+                            }
+                        }
+                    });
+                    newListeners[accName] = unsub;
                 });
                 
-                return () => unsubscribe();
+                setAccountListeners(newListeners);
+                
+                return () => {
+                    Object.values(newListeners).forEach(unsub => unsub());
+                };
+            }, [accounts]);
+            
+            // activeAccount 蹂�寃� �� 硫붾え �숆린��
+            useEffect(() => {
+                if (!activeAccount) return;
+                localStorage.setItem('saving_active_account', activeAccount);
+                const data = accountData[activeAccount];
+                if (data) {
+                    setMemoText(data.memo || '');
+                }
             }, [activeAccount]);
             
-            // ========== 저장 함수 ==========
+            // ========== �꾩껜 怨꾩쥖 �⑹궛 �붿븸 怨꾩궛 ==========
+            const totalBalance = accounts.reduce((sum, accName) => {
+                const data = accountData[accName] || { principal: [], interest: [], expense: [] };
+                const principal = (data.principal || []).reduce((s, item) => s + item.amount, 0);
+                const interest = (data.interest || []).reduce((s, item) => s + item.amount, 0);
+                const expense = (data.expense || []).reduce((s, item) => s + item.amount, 0);
+                return sum + principal + interest - expense;
+            }, 0);
+            
+            // ========== ���� �⑥닔 ==========
             const saveAccountData = useCallback(async (accName, data) => {
                 try {
                     const docId = accName.replace(/[\/\\]/g, '_');
                     await db.collection(COLLECTION).doc(docId).set(data, { merge: true });
-                    console.log('저장 완료:', accName);
+                    console.log('���� �꾨즺:', accName);
                 } catch (err) {
-                    console.error('저장 실패:', err);
-                    alert('저장에 실패했습니다. 인터넷 연결을 확인해주세요.');
+                    console.error('���� �ㅽ뙣:', err);
+                    alert('���μ뿉 �ㅽ뙣�덉뒿�덈떎. �명꽣�� �곌껐�� �뺤씤�댁＜�몄슂.');
                 }
             }, []);
             
-            // ========== 계좌 관리 ==========
+            // ========== 怨꾩쥖 愿�由� ==========
             const addAccount = () => {
                 const name = newAccountName.trim();
                 if (!name) return;
                 if (accounts.includes(name)) {
-                    alert('이미 존재하는 계좌입니다.');
+                    alert('�대� 議댁옱�섎뒗 怨꾩쥖�낅땲��.');
                     return;
                 }
                 const newList = [...accounts, name];
@@ -204,7 +235,7 @@
             };
             
             const deleteAccount = (accName) => {
-                if (!confirm(`"${accName}" 계좌를 삭제하시겠습니까?\n모든 데이터가 삭제됩니다.`)) return;
+                if (!confirm(`"${accName}" 怨꾩쥖瑜� ��젣�섏떆寃좎뒿�덇퉴?\n紐⑤뱺 �곗씠�곌� ��젣�⑸땲��.`)) return;
                 const newList = accounts.filter(a => a !== accName);
                 db.collection(COLLECTION).doc('accounts').set({ list: newList });
                 
@@ -217,10 +248,10 @@
             };
             
             const renameAccount = (oldName) => {
-                const newName = prompt('새 이름을 입력하세요:', oldName);
+                const newName = prompt('�� �대쫫�� �낅젰�섏꽭��:', oldName);
                 if (!newName || newName.trim() === '' || newName.trim() === oldName) return;
                 if (accounts.includes(newName.trim())) {
-                    alert('이미 존재하는 이름입니다.');
+                    alert('�대� 議댁옱�섎뒗 �대쫫�낅땲��.');
                     return;
                 }
                 
@@ -228,7 +259,6 @@
                 const newList = accounts.map(a => a === oldName ? trimmed : a);
                 db.collection(COLLECTION).doc('accounts').set({ list: newList });
                 
-                // 데이터 이동
                 const oldDocId = oldName.replace(/[\/\\]/g, '_');
                 const newDocId = trimmed.replace(/[\/\\]/g, '_');
                 const oldData = accountData[oldName];
@@ -242,13 +272,13 @@
                 }
             };
             
-            // ========== 항목 추가/삭제/수정 ==========
-            const currentData = accountData[activeAccount] || { principal: [], interest: [], memo: '' };
+            // ========== ��ぉ 異붽�/��젣/�섏젙 ==========
+            const currentData = accountData[activeAccount] || { principal: [], interest: [], expense: [], memo: '' };
             
             const addItem = (type) => {
                 const { date, amount, memo } = addFormData;
                 if (!date || !amount) {
-                    alert('날짜와 금액을 입력해주세요.');
+                    alert('�좎쭨�� 湲덉븸�� �낅젰�댁＜�몄슂.');
                     return;
                 }
                 
@@ -260,7 +290,6 @@
                 };
                 
                 const updatedList = [...(currentData[type] || []), newItem];
-                // 날짜순 정렬
                 updatedList.sort((a, b) => new Date(a.date) - new Date(b.date));
                 
                 const updatedData = { ...currentData, [type]: updatedList };
@@ -272,7 +301,7 @@
             };
             
             const deleteItem = (type, itemId) => {
-                if (!confirm('삭제하시겠습니까?')) return;
+                if (!confirm('��젣�섏떆寃좎뒿�덇퉴?')) return;
                 const updatedList = (currentData[type] || []).filter(item => item.id !== itemId);
                 const updatedData = { ...currentData, [type]: updatedList };
                 setAccountData(prev => ({ ...prev, [activeAccount]: updatedData }));
@@ -289,7 +318,7 @@
                 const { type, id } = editingItem;
                 const { date, amount, memo } = editFormData;
                 if (!date || !amount) {
-                    alert('날짜와 금액을 입력해주세요.');
+                    alert('�좎쭨�� 湲덉븸�� �낅젰�댁＜�몄슂.');
                     return;
                 }
                 
@@ -311,7 +340,7 @@
                 setEditFormData({ date: '', amount: '', memo: '' });
             };
             
-            // ========== 메모 수정/저장 ==========
+            // ========== 硫붾え �섏젙/���� ==========
             const startMemoEdit = () => {
                 setMemoBackup(memoText);
                 setIsMemoEditing(true);
@@ -328,41 +357,41 @@
                 setIsMemoEditing(false);
             };
             
-            // ========== 계산 ==========
+            // ========== �꾩옱 怨꾩쥖 怨꾩궛 ==========
             const principalTotal = (currentData.principal || []).reduce((sum, item) => sum + item.amount, 0);
             const interestTotal = (currentData.interest || []).reduce((sum, item) => sum + item.amount, 0);
             const expenseTotal = (currentData.expense || []).reduce((sum, item) => sum + item.amount, 0);
             const balance = principalTotal + interestTotal - expenseTotal;
             
-            // ========== 금액 포맷 ==========
+            // ========== 湲덉븸 �щ㎎ ==========
             const formatMoney = (amount) => {
-                if (amount === 0) return '0원';
-                return amount.toLocaleString('ko-KR') + '원';
+                if (amount === 0) return '0��';
+                return amount.toLocaleString('ko-KR') + '��';
             };
             
-            // ========== 날짜 포맷 ==========
+            // ========== �좎쭨 �щ㎎ ==========
             const formatDate = (dateStr) => {
                 if (!dateStr) return '';
                 const d = new Date(dateStr);
                 return `${d.getFullYear()}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getDate().toString().padStart(2,'0')}`;
             };
             
-            // ========== 로딩 ==========
+            // ========== 濡쒕뵫 ==========
             if (isLoading) {
                 return (
                     <div style={{display:'flex',justifyContent:'center',alignItems:'center',height:'100vh',background:'linear-gradient(135deg,#1a1a2e,#16213e)'}}>
                         <div style={{textAlign:'center',color:'white'}}>
-                            <div style={{fontSize:'48px',marginBottom:'16px'}}>💰</div>
-                            <div style={{fontSize:'18px',fontWeight:'600'}}>로딩중...</div>
+                            <div style={{fontSize:'48px',marginBottom:'16px'}}>�뮥</div>
+                            <div style={{fontSize:'18px',fontWeight:'600'}}>濡쒕뵫以�...</div>
                         </div>
                     </div>
                 );
             }
             
-            // ========== 렌더링 ==========
+            // ========== �뚮뜑留� ==========
             return (
                 <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#0f0c29,#302b63,#24243e)'}}>
-                    {/* 헤더 */}
+                    {/* �ㅻ뜑 */}
                     <div style={{
                         background:'linear-gradient(135deg,#667eea,#764ba2)',
                         padding:'20px 16px 16px',
@@ -371,17 +400,42 @@
                         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px'}}>
                             <a href="index.html" style={{
                                 color:'rgba(255,255,255,0.8)',fontSize:'22px',textDecoration:'none'
-                            }}>←</a>
+                            }}>��</a>
                             <h1 style={{color:'white',fontSize:'18px',fontWeight:'700',letterSpacing:'-0.5px'}}>
-                                💰 다솔, 호철 부자되기 프로젝트
+                                �뮥 �ㅼ넄, �몄쿋 遺��먮릺湲� �꾨줈�앺듃
                             </h1>
                             <button onClick={() => setShowSettings(!showSettings)} style={{
                                 background:'none',border:'none',color:'rgba(255,255,255,0.8)',
                                 fontSize:'20px',cursor:'pointer'
-                            }}>⚙️</button>
+                            }}>�숋툘</button>
                         </div>
                         
-                        {/* 계좌 탭 */}
+                        {/* �� �꾩껜 怨꾩쥖 �⑹궛 �붿븸 �� */}
+                        <div style={{
+                            textAlign:'center',
+                            padding:'10px 0 14px',
+                            borderBottom:'1px solid rgba(255,255,255,0.15)',
+                            marginBottom:'12px'
+                        }}>
+                            <div style={{
+                                fontSize:'11px',
+                                fontWeight:'600',
+                                color:'rgba(255,255,255,0.6)',
+                                marginBottom:'4px',
+                                letterSpacing:'1px'
+                            }}>�꾩껜 �⑹궛 �붿븸</div>
+                            <div style={{
+                                fontSize:'24px',
+                                fontWeight:'800',
+                                color:'#fff',
+                                textShadow:'0 2px 8px rgba(0,0,0,0.2)',
+                                letterSpacing:'-0.5px'
+                            }}>
+                                {formatMoney(totalBalance)}
+                            </div>
+                        </div>
+                        
+                        {/* 怨꾩쥖 �� */}
                         <div className="scrollbar-hide" style={{
                             display:'flex',gap:'8px',overflowX:'auto',paddingBottom:'4px'
                         }}>
@@ -411,11 +465,11 @@
                                 border:'2px dashed rgba(255,255,255,0.4)',
                                 background:'transparent',color:'rgba(255,255,255,0.7)',
                                 fontSize:'13px',cursor:'pointer',whiteSpace:'nowrap'
-                            }}>+ 추가</button>
+                            }}>+ 異붽�</button>
                         </div>
                     </div>
                     
-                    {/* 계좌 추가 모달 */}
+                    {/* 怨꾩쥖 異붽� 紐⑤떖 */}
                     {showAddAccount && (
                         <div style={{
                             position:'fixed',top:0,left:0,right:0,bottom:0,
@@ -427,11 +481,11 @@
                                 width:'100%',maxWidth:'350px'
                             }} onClick={e => e.stopPropagation()}>
                                 <h3 style={{fontSize:'18px',fontWeight:'700',marginBottom:'16px',color:'#1a1a2e'}}>
-                                    새 계좌 추가
+                                    �� 怨꾩쥖 異붽�
                                 </h3>
                                 <input
                                     type="text"
-                                    placeholder="계좌 이름 (예: 적금, CMA...)"
+                                    placeholder="怨꾩쥖 �대쫫 (��: �곴툑, CMA...)"
                                     value={newAccountName}
                                     onChange={e => setNewAccountName(e.target.value)}
                                     onKeyDown={e => e.key === 'Enter' && addAccount()}
@@ -447,18 +501,18 @@
                                         flex:1,padding:'12px',borderRadius:'12px',border:'none',
                                         background:'#f3f4f6',color:'#666',fontSize:'15px',
                                         fontWeight:'600',cursor:'pointer'
-                                    }}>취소</button>
+                                    }}>痍⑥냼</button>
                                     <button onClick={addAccount} style={{
                                         flex:1,padding:'12px',borderRadius:'12px',border:'none',
                                         background:'linear-gradient(135deg,#667eea,#764ba2)',
                                         color:'white',fontSize:'15px',fontWeight:'600',cursor:'pointer'
-                                    }}>추가</button>
+                                    }}>異붽�</button>
                                 </div>
                             </div>
                         </div>
                     )}
                     
-                    {/* 설정 패널 */}
+                    {/* �ㅼ젙 �⑤꼸 */}
                     {showSettings && (
                         <div style={{
                             background:'rgba(255,255,255,0.05)',
@@ -466,7 +520,7 @@
                             padding:'16px'
                         }}>
                             <h3 style={{color:'white',fontSize:'15px',fontWeight:'700',marginBottom:'12px'}}>
-                                계좌 관리
+                                怨꾩쥖 愿�由�
                             </h3>
                             {accounts.map(acc => (
                                 <div key={acc} style={{
@@ -480,65 +534,65 @@
                                             background:'rgba(255,255,255,0.15)',border:'none',
                                             color:'white',padding:'6px 12px',borderRadius:'8px',
                                             fontSize:'12px',cursor:'pointer'
-                                        }}>이름변경</button>
+                                        }}>�대쫫蹂�寃�</button>
                                         <button onClick={() => deleteAccount(acc)} style={{
                                             background:'rgba(255,59,48,0.3)',border:'none',
                                             color:'#ff6b6b',padding:'6px 12px',borderRadius:'8px',
                                             fontSize:'12px',cursor:'pointer'
-                                        }}>삭제</button>
+                                        }}>��젣</button>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
                     
-                    {/* 메인 콘텐츠 */}
+                    {/* 硫붿씤 肄섑뀗痢� */}
                     <div style={{padding:'16px'}}>
-                        {/* 요약 카드 4개 */}
+                        {/* �붿빟 移대뱶 4媛� */}
                         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'20px'}}>
-                            {/* 통장잔액 */}
+                            {/* �듭옣�붿븸 */}
                             <div style={{
                                 background:'linear-gradient(135deg,#667eea,#764ba2)',
                                 borderRadius:'16px',padding:'16px 12px',textAlign:'center'
                             }}>
                                 <div style={{color:'rgba(255,255,255,0.7)',fontSize:'11px',fontWeight:'600',marginBottom:'6px'}}>
-                                    통장잔액
+                                    �듭옣�붿븸
                                 </div>
                                 <div style={{color:'white',fontSize:'17px',fontWeight:'800',wordBreak:'break-all'}}>
                                     {formatMoney(balance)}
                                 </div>
                             </div>
-                            {/* 원금 */}
+                            {/* �먭툑 */}
                             <div style={{
                                 background:'linear-gradient(135deg,#11998e,#38ef7d)',
                                 borderRadius:'16px',padding:'16px 12px',textAlign:'center'
                             }}>
                                 <div style={{color:'rgba(255,255,255,0.7)',fontSize:'11px',fontWeight:'600',marginBottom:'6px'}}>
-                                    원금
+                                    �먭툑
                                 </div>
                                 <div style={{color:'white',fontSize:'17px',fontWeight:'800',wordBreak:'break-all'}}>
                                     {formatMoney(principalTotal)}
                                 </div>
                             </div>
-                            {/* 이자 */}
+                            {/* �댁옄 */}
                             <div style={{
                                 background:'linear-gradient(135deg,#f093fb,#f5576c)',
                                 borderRadius:'16px',padding:'16px 12px',textAlign:'center'
                             }}>
                                 <div style={{color:'rgba(255,255,255,0.7)',fontSize:'11px',fontWeight:'600',marginBottom:'6px'}}>
-                                    이자
+                                    �댁옄
                                 </div>
                                 <div style={{color:'white',fontSize:'17px',fontWeight:'800',wordBreak:'break-all'}}>
                                     {formatMoney(interestTotal)}
                                 </div>
                             </div>
-                            {/* 지출 */}
+                            {/* 吏�異� */}
                             <div style={{
                                 background:'linear-gradient(135deg,#ff6b6b,#ee5a24)',
                                 borderRadius:'16px',padding:'16px 12px',textAlign:'center'
                             }}>
                                 <div style={{color:'rgba(255,255,255,0.7)',fontSize:'11px',fontWeight:'600',marginBottom:'6px'}}>
-                                    지출
+                                    吏�異�
                                 </div>
                                 <div style={{color:'white',fontSize:'17px',fontWeight:'800',wordBreak:'break-all'}}>
                                     {formatMoney(expenseTotal)}
@@ -546,10 +600,10 @@
                             </div>
                         </div>
                         
-                        {/* 아코디언 섹션: 원금 */}
+                        {/* �꾩퐫�붿뼵 �뱀뀡: �먭툑 */}
                         <SectionAccordion
-                            title="원금"
-                            emoji="💵"
+                            title="�먭툑"
+                            emoji="�뮫"
                             color="#11998e"
                             gradientFrom="#11998e"
                             gradientTo="#38ef7d"
@@ -581,10 +635,10 @@
                             formatDate={formatDate}
                         />
                         
-                        {/* 아코디언 섹션: 이자 */}
+                        {/* �꾩퐫�붿뼵 �뱀뀡: �댁옄 */}
                         <SectionAccordion
-                            title="이자"
-                            emoji="📈"
+                            title="�댁옄"
+                            emoji="�뱢"
                             color="#f5576c"
                             gradientFrom="#f093fb"
                             gradientTo="#f5576c"
@@ -616,10 +670,10 @@
                             formatDate={formatDate}
                         />
                         
-                        {/* 아코디언 섹션: 지출 */}
+                        {/* �꾩퐫�붿뼵 �뱀뀡: 吏�異� */}
                         <SectionAccordion
-                            title="지출"
-                            emoji="💸"
+                            title="吏�異�"
+                            emoji="�뮯"
                             color="#ee5a24"
                             gradientFrom="#ff6b6b"
                             gradientTo="#ee5a24"
@@ -651,7 +705,7 @@
                             formatDate={formatDate}
                         />
                         
-                        {/* 아코디언 섹션: 메모 */}
+                        {/* �꾩퐫�붿뼵 �뱀뀡: 硫붾え */}
                         <div style={{marginBottom:'12px'}}>
                             <button onClick={() => {
                                 setExpandedSection(expandedSection === 'memo' ? null : 'memo');
@@ -666,14 +720,14 @@
                                 border:'none',cursor:'pointer',transition:'all 0.2s'
                             }}>
                                 <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-                                    <span style={{fontSize:'20px'}}>📝</span>
-                                    <span style={{fontSize:'16px',fontWeight:'700',color:'#1a1a2e'}}>메모</span>
+                                    <span style={{fontSize:'20px'}}>�뱷</span>
+                                    <span style={{fontSize:'16px',fontWeight:'700',color:'#1a1a2e'}}>硫붾え</span>
                                 </div>
                                 <span style={{
                                     fontSize:'18px',color:'#1a1a2e',
                                     transform: expandedSection === 'memo' ? 'rotate(180deg)' : 'rotate(0deg)',
                                     transition:'transform 0.2s'
-                                }}>▼</span>
+                                }}>��</span>
                             </button>
                             
                             {expandedSection === 'memo' && (
@@ -685,12 +739,11 @@
                                     borderTop:'none'
                                 }}>
                                     {isMemoEditing ? (
-                                        /* 수정 모드 */
                                         <div>
                                             <textarea
                                                 value={memoText}
                                                 onChange={e => setMemoText(e.target.value)}
-                                                placeholder="자유롭게 메모를 작성하세요..."
+                                                placeholder="�먯쑀濡�쾶 硫붾え瑜� �묒꽦�섏꽭��..."
                                                 autoFocus
                                                 style={{
                                                     width:'100%',minHeight:'150px',padding:'14px',
@@ -706,17 +759,16 @@
                                                     background:'rgba(255,255,255,0.1)',
                                                     color:'rgba(255,255,255,0.6)',fontSize:'14px',
                                                     fontWeight:'600',cursor:'pointer'
-                                                }}>취소</button>
+                                                }}>痍⑥냼</button>
                                                 <button onClick={saveMemo} style={{
                                                     flex:1,padding:'12px',borderRadius:'12px',border:'none',
                                                     background:'linear-gradient(135deg,#ffecd2,#fcb69f)',
                                                     color:'#1a1a2e',fontSize:'14px',
                                                     fontWeight:'700',cursor:'pointer'
-                                                }}>💾 저장</button>
+                                                }}>�뮶 ����</button>
                                             </div>
                                         </div>
                                     ) : (
-                                        /* 읽기 모드 */
                                         <div>
                                             <div style={{
                                                 width:'100%',minHeight:'80px',padding:'14px',
@@ -725,7 +777,7 @@
                                                 fontSize:'14px',lineHeight:'1.6',
                                                 whiteSpace:'pre-wrap',wordBreak:'break-word'
                                             }}>
-                                                {memoText || <span style={{color:'rgba(255,255,255,0.3)'}}>메모가 없습니다</span>}
+                                                {memoText || <span style={{color:'rgba(255,255,255,0.3)'}}>硫붾え媛� �놁뒿�덈떎</span>}
                                             </div>
                                             <div style={{marginTop:'12px',textAlign:'right'}}>
                                                 <button onClick={startMemoEdit} style={{
@@ -733,7 +785,7 @@
                                                     background:'linear-gradient(135deg,#ffecd2,#fcb69f)',
                                                     color:'#1a1a2e',fontSize:'14px',
                                                     fontWeight:'700',cursor:'pointer'
-                                                }}>✏️ 수정</button>
+                                                }}>�륅툘 �섏젙</button>
                                             </div>
                                         </div>
                                     )}
@@ -743,7 +795,7 @@
                         
                     </div>
                     
-                    {/* 하단 홈 버튼 */}
+                    {/* �섎떒 �� 踰꾪듉 */}
                     <div style={{
                         padding:'20px 16px 40px',textAlign:'center'
                     }}>
@@ -753,19 +805,19 @@
                             color:'rgba(255,255,255,0.6)',textDecoration:'none',
                             fontSize:'14px',fontWeight:'600',
                             border:'1px solid rgba(255,255,255,0.15)'
-                        }}>🏠 메인으로</a>
+                        }}>�룧 硫붿씤�쇰줈</a>
                     </div>
                 </div>
             );
         }
         
-        // ==================== 오늘 날짜 ====================
+        // ==================== �ㅻ뒛 �좎쭨 ====================
         function getTodayStr() {
             const d = new Date();
             return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
         }
         
-        // ==================== 아코디언 섹션 컴포넌트 ====================
+        // ==================== �꾩퐫�붿뼵 �뱀뀡 而댄룷�뚰듃 ====================
         function SectionAccordion({
             title, emoji, color, gradientFrom, gradientTo,
             isExpanded, onToggle,
@@ -779,7 +831,7 @@
             
             return (
                 <div style={{marginBottom:'12px'}}>
-                    {/* 헤더 */}
+                    {/* �ㅻ뜑 */}
                     <button onClick={onToggle} style={{
                         width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',
                         padding:'16px',
@@ -793,7 +845,7 @@
                             <span style={{
                                 background:'rgba(255,255,255,0.25)',padding:'2px 8px',
                                 borderRadius:'10px',fontSize:'12px',color:'white',fontWeight:'600'
-                            }}>{itemCount}건</span>
+                            }}>{itemCount}嫄�</span>
                         </div>
                         <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
                             <span style={{fontSize:'14px',fontWeight:'700',color:'white'}}>
@@ -803,11 +855,11 @@
                                 fontSize:'18px',color:'white',
                                 transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
                                 transition:'transform 0.2s'
-                            }}>▼</span>
+                            }}>��</span>
                         </div>
                     </button>
                     
-                    {/* 콘텐츠 */}
+                    {/* 肄섑뀗痢� */}
                     {isExpanded && (
                         <div style={{
                             background:'rgba(255,255,255,0.08)',
@@ -816,7 +868,7 @@
                             border:'1px solid rgba(255,255,255,0.1)',
                             borderTop:'none'
                         }}>
-                            {/* 추가 버튼 */}
+                            {/* 異붽� 踰꾪듉 */}
                             <button onClick={onAdd} style={{
                                 width:'100%',padding:'12px',
                                 background: showAddForm ? 'rgba(255,59,48,0.15)' : 'rgba(255,255,255,0.08)',
@@ -825,10 +877,10 @@
                                 fontSize:'14px',fontWeight:'600',cursor:'pointer',
                                 marginBottom:'12px',transition:'all 0.2s'
                             }}>
-                                {showAddForm ? '✕ 취소' : `+ ${title} 추가`}
+                                {showAddForm ? '�� 痍⑥냼' : `+ ${title} 異붽�`}
                             </button>
                             
-                            {/* 추가 폼 */}
+                            {/* 異붽� �� */}
                             {showAddForm && (
                                 <div style={{
                                     background:'rgba(255,255,255,0.06)',borderRadius:'12px',
@@ -836,7 +888,7 @@
                                     border:'1px solid rgba(255,255,255,0.1)'
                                 }}>
                                     <div style={{marginBottom:'10px'}}>
-                                        <label style={{fontSize:'12px',color:'rgba(255,255,255,0.5)',marginBottom:'4px',display:'block'}}>날짜</label>
+                                        <label style={{fontSize:'12px',color:'rgba(255,255,255,0.5)',marginBottom:'4px',display:'block'}}>�좎쭨</label>
                                         <input type="date" value={addFormData.date}
                                             onChange={e => setAddFormData({...addFormData, date: e.target.value})}
                                             style={{
@@ -848,10 +900,10 @@
                                         />
                                     </div>
                                     <div style={{marginBottom:'10px'}}>
-                                        <label style={{fontSize:'12px',color:'rgba(255,255,255,0.5)',marginBottom:'4px',display:'block'}}>금액 (원)</label>
+                                        <label style={{fontSize:'12px',color:'rgba(255,255,255,0.5)',marginBottom:'4px',display:'block'}}>湲덉븸 (��)</label>
                                         <input type="number" value={addFormData.amount}
                                             onChange={e => setAddFormData({...addFormData, amount: e.target.value})}
-                                            placeholder="금액 입력"
+                                            placeholder="湲덉븸 �낅젰"
                                             style={{
                                                 width:'100%',padding:'10px 12px',borderRadius:'10px',
                                                 border:'1px solid rgba(255,255,255,0.15)',
@@ -861,10 +913,10 @@
                                         />
                                     </div>
                                     <div style={{marginBottom:'12px'}}>
-                                        <label style={{fontSize:'12px',color:'rgba(255,255,255,0.5)',marginBottom:'4px',display:'block'}}>메모 (선택)</label>
+                                        <label style={{fontSize:'12px',color:'rgba(255,255,255,0.5)',marginBottom:'4px',display:'block'}}>硫붾え (�좏깮)</label>
                                         <input type="text" value={addFormData.memo}
                                             onChange={e => setAddFormData({...addFormData, memo: e.target.value})}
-                                            placeholder="메모 입력"
+                                            placeholder="硫붾え �낅젰"
                                             style={{
                                                 width:'100%',padding:'10px 12px',borderRadius:'10px',
                                                 border:'1px solid rgba(255,255,255,0.15)',
@@ -877,17 +929,17 @@
                                         width:'100%',padding:'12px',borderRadius:'12px',border:'none',
                                         background:`linear-gradient(135deg,${gradientFrom},${gradientTo})`,
                                         color:'white',fontSize:'15px',fontWeight:'700',cursor:'pointer'
-                                    }}>추가하기</button>
+                                    }}>異붽��섍린</button>
                                 </div>
                             )}
                             
-                            {/* 항목 리스트 */}
+                            {/* ��ぉ 由ъ뒪�� */}
                             {items.length === 0 ? (
                                 <div style={{
                                     textAlign:'center',padding:'20px',
                                     color:'rgba(255,255,255,0.3)',fontSize:'14px'
                                 }}>
-                                    아직 항목이 없습니다
+                                    �꾩쭅 ��ぉ�� �놁뒿�덈떎
                                 </div>
                             ) : (
                                 items.map(item => {
@@ -925,7 +977,7 @@
                                                 <div style={{marginBottom:'10px'}}>
                                                     <input type="text" value={editFormData.memo}
                                                         onChange={e => setEditFormData({...editFormData, memo: e.target.value})}
-                                                        placeholder="메모"
+                                                        placeholder="硫붾え"
                                                         style={{
                                                             width:'100%',padding:'8px 10px',borderRadius:'8px',
                                                             border:'1px solid rgba(255,255,255,0.15)',
@@ -939,12 +991,12 @@
                                                         flex:1,padding:'8px',borderRadius:'8px',border:'none',
                                                         background:'rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.6)',
                                                         fontSize:'13px',fontWeight:'600',cursor:'pointer'
-                                                    }}>취소</button>
+                                                    }}>痍⑥냼</button>
                                                     <button onClick={onEditSave} style={{
                                                         flex:1,padding:'8px',borderRadius:'8px',border:'none',
                                                         background:`linear-gradient(135deg,${gradientFrom},${gradientTo})`,
                                                         color:'white',fontSize:'13px',fontWeight:'600',cursor:'pointer'
-                                                    }}>저장</button>
+                                                    }}>����</button>
                                                 </div>
                                             </div>
                                         );
@@ -979,12 +1031,12 @@
                                                     background:'rgba(255,255,255,0.1)',border:'none',
                                                     color:'rgba(255,255,255,0.6)',padding:'6px 10px',
                                                     borderRadius:'8px',fontSize:'12px',cursor:'pointer'
-                                                }}>✏️</button>
+                                                }}>�륅툘</button>
                                                 <button onClick={() => onDelete(item.id)} style={{
                                                     background:'rgba(255,59,48,0.15)',border:'none',
                                                     color:'#ff6b6b',padding:'6px 10px',
                                                     borderRadius:'8px',fontSize:'12px',cursor:'pointer'
-                                                }}>🗑️</button>
+                                                }}>�뿊截�</button>
                                             </div>
                                         </div>
                                     );
@@ -996,7 +1048,7 @@
             );
         }
         
-        // ==================== 렌더 ====================
+        // ==================== �뚮뜑 ====================
         ReactDOM.render(<SavingProject />, document.getElementById('root'));
     </script>
 </body>
