@@ -1,4 +1,4 @@
-\xEF\xBB\xBF<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -258,13 +258,18 @@
 
             const sortByDate = (items, type) => {
                 const hasEditing = items.some(item => editingItems[`${type}-${item.id}`]);
-                if (hasEditing) return items;
+                if (hasEditing) {
+                    return items;
+                }
                 
                 return [...items].sort((a, b) => {
                     if (!a.date && !b.date) return 0;
                     if (!a.date) return 1;
                     if (!b.date) return -1;
-                    return new Date(a.date) - new Date(b.date);
+                    
+                    const dateA = new Date(a.date);
+                    const dateB = new Date(b.date);
+                    return dateA - dateB;
                 });
             };
 
@@ -279,9 +284,11 @@
 
             const saveToFirebase = (field, updatedData) => {
                 const key = `${activeMonth}-${field}`;
+                
                 if (saveTimeoutRef.current[key]) {
                     clearTimeout(saveTimeoutRef.current[key]);
                 }
+
                 saveTimeoutRef.current[key] = setTimeout(() => {
                     db.collection('household').doc(activeMonth).update({ [field]: updatedData })
                         .then(() => console.log('저장 완료'))
@@ -294,7 +301,11 @@
                 const newMonth = `${newMonthYear}년${monthFormatted}월`;
                 if (!months.includes(newMonth)) {
                     db.collection('household').doc(newMonth).set({
-                        fixed: [], expense: [], income: [], refund: [], saving: []
+                        fixed: [],
+                        expense: [],
+                        income: [],
+                        refund: [],
+                        saving: []
                     });
                     setNewMonthYear('25');
                     setNewMonthMonth('01');
@@ -310,18 +321,30 @@
 
             const saveEditMonth = async () => {
                 if (!editingMonth) return;
+                
                 const monthFormatted = editMonthMonth.toString().padStart(2, '0');
                 const newMonthName = `${editMonthYear}년${monthFormatted}월`;
-                if (newMonthName === editingMonth) { setEditingMonth(null); return; }
-                if (months.includes(newMonthName)) { alert('이미 존재하는 월입니다.'); return; }
+                
+                if (newMonthName === editingMonth) {
+                    setEditingMonth(null);
+                    return;
+                }
+                
+                if (months.includes(newMonthName)) {
+                    alert('이미 존재하는 월입니다.');
+                    return;
+                }
+                
                 try {
                     const oldData = localData[editingMonth];
                     await db.collection('household').doc(newMonthName).set(oldData);
                     await db.collection('household').doc(editingMonth).delete();
+                    
                     if (activeMonth === editingMonth) {
                         setActiveMonth(newMonthName);
                         localStorage.setItem('lastActiveMonth', newMonthName);
                     }
+                    
                     setEditingMonth(null);
                 } catch (error) {
                     console.error('월 이름 수정 실패:', error);
@@ -338,18 +361,25 @@
             const changeMonth = (newMonth) => {
                 if (localData[activeMonth]) {
                     Object.keys(saveTimeoutRef.current).forEach(key => {
-                        if (saveTimeoutRef.current[key]) clearTimeout(saveTimeoutRef.current[key]);
+                        if (saveTimeoutRef.current[key]) {
+                            clearTimeout(saveTimeoutRef.current[key]);
+                        }
                     });
+                    
                     db.collection('household').doc(activeMonth).update(localData[activeMonth])
                         .then(() => console.log('월 변경 전 저장 완료'))
                         .catch(err => console.error('저장 실패:', err));
                 }
+                
                 setActiveMonth(newMonth);
                 localStorage.setItem('lastActiveMonth', newMonth);
             };
 
             const deleteMonth = (month) => {
-                if (months.length <= 1) { alert('마지막 월은 삭제할 수 없습니다.'); return; }
+                if (months.length <= 1) {
+                    alert('마지막 월은 삭제할 수 없습니다.');
+                    return;
+                }
                 if (window.confirm(`${month}을 삭제하시겠습니까?`)) {
                     db.collection('household').doc(month).delete();
                     if (activeMonth === month) {
@@ -361,28 +391,28 @@
                 }
             };
 
-            // 공통 CRUD 함수들
-            const addItem = (field) => {
+            // === 공통 CRUD 함수 ===
+            const addItem = (type) => {
                 const newItem = { id: Date.now(), date: '', content: '', amount: '' };
-                const updated = [...(currentData[field] || []), newItem];
-                setLocalData({ ...localData, [activeMonth]: { ...currentData, [field]: updated } });
-                db.collection('household').doc(activeMonth).update({ [field]: updated });
-                setEditingItems({ ...editingItems, [`${field}-${newItem.id}`]: true });
+                const updated = [...(currentData[type] || []), newItem];
+                setLocalData({ ...localData, [activeMonth]: { ...currentData, [type]: updated } });
+                db.collection('household').doc(activeMonth).update({ [type]: updated });
+                setEditingItems({ ...editingItems, [`${type}-${newItem.id}`]: true });
             };
 
-            const updateItem = (field, id, key, value) => {
-                const updated = (currentData[field] || []).map(item =>
-                    item.id === id ? { ...item, [key]: value } : item
+            const updateItem = (type, id, field, value) => {
+                const updated = (currentData[type] || []).map(item =>
+                    item.id === id ? { ...item, [field]: value } : item
                 );
-                setLocalData({ ...localData, [activeMonth]: { ...currentData, [field]: updated } });
-                saveToFirebase(field, updated);
+                setLocalData({ ...localData, [activeMonth]: { ...currentData, [type]: updated } });
+                saveToFirebase(type, updated);
             };
 
-            const deleteItem = (field, id) => {
+            const deleteItem = (type, id) => {
                 if (window.confirm('삭제하시겠습니까?')) {
-                    const updated = (currentData[field] || []).filter(item => item.id !== id);
-                    setLocalData({ ...localData, [activeMonth]: { ...currentData, [field]: updated } });
-                    db.collection('household').doc(activeMonth).update({ [field]: updated });
+                    const updated = (currentData[type] || []).filter(item => item.id !== id);
+                    setLocalData({ ...localData, [activeMonth]: { ...currentData, [type]: updated } });
+                    db.collection('household').doc(activeMonth).update({ [type]: updated });
                 }
             };
 
@@ -394,7 +424,9 @@
             const completeEdit = (type, id) => {
                 const key = `${type}-${id}`;
                 const timeoutKey = `${activeMonth}-${type}`;
-                if (saveTimeoutRef.current[timeoutKey]) clearTimeout(saveTimeoutRef.current[timeoutKey]);
+                if (saveTimeoutRef.current[timeoutKey]) {
+                    clearTimeout(saveTimeoutRef.current[timeoutKey]);
+                }
                 const fieldData = currentData[type];
                 db.collection('household').doc(activeMonth).update({ [type]: fieldData })
                     .then(() => console.log('즉시 저장 완료'))
@@ -408,7 +440,7 @@
             const refundTotal = calculateTotal(currentData.refund || []);
             const savingTotal = calculateTotal(currentData.saving || []);
             const totalExpenseWithRefund = fixedTotal + expenseTotal - refundTotal;
-            // 저금은 통장잔액에서만 차감, 지출합계/수입합계에는 미포함
+            // 통장잔액: 수입 + 환불 - 고정지출 - 지출 - 저금
             const balance = incomeTotal + refundTotal - fixedTotal - expenseTotal - savingTotal;
 
             if (isLoading) {
@@ -423,93 +455,92 @@
             }
 
             // 섹션 렌더링 공통 함수
-            const renderSection = (field, label, emoji, colorClass, bgClass, borderClass, isExpanded, setExpanded) => {
-                const items = currentData[field] || [];
-                return (
-                    <div className="bg-white shadow-lg rounded-2xl mb-3 overflow-hidden">
-                        <button
-                            onClick={() => setExpanded(!isExpanded)}
-                            className={`w-full px-4 py-3 flex items-center justify-between ${colorClass} text-white transition-colors`}
-                        >
-                            <span className="text-lg font-bold">{emoji} {label}</span>
-                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                        </button>
+            const renderSection = (type, label, emoji, colorClass, bgClass, borderClass, isExpanded, setExpanded) => (
+                <div className="bg-white shadow-lg rounded-2xl mb-3 overflow-hidden">
+                    <button
+                        onClick={() => setExpanded(!isExpanded)}
+                        className={`w-full px-4 py-3 flex items-center justify-between ${colorClass} text-white transition-colors`}
+                    >
+                        <span className="text-lg font-bold">{emoji} {label}</span>
+                        {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                    </button>
 
-                        {isExpanded && (
-                            <div className="p-3">
-                                <div className="space-y-2">
-                                    {items.length === 0 ? (
-                                        <div className="text-center py-8 text-gray-400 text-sm">
-                                            {label} 내역이 없습니다
-                                        </div>
-                                    ) : (
-                                        sortByDate(items, field).map(item => {
-                                            const isEditing = editingItems[`${field}-${item.id}`];
-                                            return (
-                                                <div key={item.id} className={`${bgClass} p-2 rounded-lg border ${borderClass}`}>
-                                                    <div className="flex gap-1 items-start mb-2">
-                                                        <input
-                                                            type="date"
-                                                            value={item.date || ''}
-                                                            onChange={(e) => updateItem(field, item.id, 'date', e.target.value)}
-                                                            className="w-28 px-1 py-2 border rounded text-xs flex-shrink-0"
-                                                            disabled={!isEditing}
-                                                        />
-                                                        <button
-                                                            onClick={() => deleteItem(field, item.id)}
-                                                            className="p-2 text-red-500 hover:bg-red-50 rounded flex-shrink-0"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
+                    {isExpanded && (
+                        <div className="p-3">
+                            <div className="space-y-2">
+                                {(currentData[type] || []).length === 0 ? (
+                                    <div className="text-center py-8 text-gray-400 text-sm">
+                                        {label} 내역이 없습니다
+                                    </div>
+                                ) : (
+                                    sortByDate(currentData[type] || [], type).map(item => {
+                                        const isEditing = editingItems[`${type}-${item.id}`];
+                                        return (
+                                            <div key={item.id} className={`${bgClass} p-2 rounded-lg border ${borderClass}`}>
+                                                <div className="flex gap-1 items-start mb-2">
                                                     <input
-                                                        type="text"
-                                                        value={item.content || ''}
-                                                        onChange={(e) => updateItem(field, item.id, 'content', e.target.value)}
-                                                        placeholder="내용을 입력하세요"
-                                                        className="w-full px-2 py-2 border rounded text-sm mb-2"
+                                                        type="date"
+                                                        value={item.date || ''}
+                                                        onChange={(e) => updateItem(type, item.id, 'date', e.target.value)}
+                                                        className="w-28 px-1 py-2 border rounded text-xs flex-shrink-0"
                                                         disabled={!isEditing}
                                                     />
-                                                    <div className="flex gap-1 items-center">
-                                                        {isEditing ? (
-                                                            <input
-                                                                type="number"
-                                                                value={item.amount || ''}
-                                                                onChange={(e) => updateItem(field, item.id, 'amount', e.target.value)}
-                                                                placeholder="금액"
-                                                                className="flex-1 px-2 py-2 border rounded text-sm"
-                                                            />
-                                                        ) : (
-                                                            <div className="flex-1 px-2 py-2 border rounded bg-gray-100 text-xs font-bold text-right">
-                                                                {formatNumber(item.amount)}원
-                                                            </div>
-                                                        )}
-                                                        <button
-                                                            onClick={() => isEditing ? completeEdit(field, item.id) : toggleEdit(field, item.id)}
-                                                            className={`px-4 py-2 rounded font-bold text-xs ${
-                                                                isEditing ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
-                                                            }`}
-                                                        >
-                                                            {isEditing ? '완료' : '수정'}
-                                                        </button>
-                                                    </div>
+                                                    <button
+                                                        onClick={() => deleteItem(type, item.id)}
+                                                        className="p-2 text-red-500 hover:bg-red-50 rounded flex-shrink-0"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
                                                 </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                                <button
-                                    onClick={() => addItem(field)}
-                                    className={`mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 ${colorClass} text-white rounded-lg font-bold`}
-                                >
-                                    <Plus size={20} />
-                                    {label} 추가
-                                </button>
+                                                <input
+                                                    type="text"
+                                                    value={item.content || ''}
+                                                    onChange={(e) => updateItem(type, item.id, 'content', e.target.value)}
+                                                    placeholder="내용을 입력하세요"
+                                                    className="w-full px-2 py-2 border rounded text-sm mb-2"
+                                                    disabled={!isEditing}
+                                                />
+                                                <div className="flex gap-1 items-center">
+                                                    {isEditing ? (
+                                                        <input
+                                                            type="number"
+                                                            value={item.amount || ''}
+                                                            onChange={(e) => updateItem(type, item.id, 'amount', e.target.value)}
+                                                            placeholder="금액"
+                                                            className="flex-1 px-2 py-2 border rounded text-sm"
+                                                        />
+                                                    ) : (
+                                                        <div className="flex-1 px-2 py-2 border rounded bg-gray-100 text-xs font-bold text-right">
+                                                            {formatNumber(item.amount)}원
+                                                        </div>
+                                                    )}
+                                                    <button
+                                                        onClick={() => isEditing ? completeEdit(type, item.id) : toggleEdit(type, item.id)}
+                                                        className={`px-4 py-2 rounded font-bold text-xs ${
+                                                            isEditing 
+                                                                ? 'bg-green-500 text-white' 
+                                                                : 'bg-blue-500 text-white'
+                                                        }`}
+                                                    >
+                                                        {isEditing ? '완료' : '수정'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
                             </div>
-                        )}
-                    </div>
-                );
-            };
+                            <button
+                                onClick={() => addItem(type)}
+                                className={`mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 ${colorClass} text-white rounded-lg font-bold`}
+                            >
+                                <Plus size={20} />
+                                {label} 추가
+                            </button>
+                        </div>
+                    )}
+                </div>
+            );
 
             return (
                 <div className="min-h-screen bg-gray-50 pb-20">
@@ -548,11 +579,32 @@
                                     <div className="mb-4">
                                         <label className="block text-sm font-bold mb-2">새 월 추가</label>
                                         <div className="flex gap-2 items-center">
-                                            <input type="number" value={newMonthYear} onChange={(e) => setNewMonthYear(e.target.value)} onFocus={(e) => e.target.select()} placeholder="년" className="w-20 px-3 py-2 border rounded-lg text-center" />
+                                            <input
+                                                type="number"
+                                                value={newMonthYear}
+                                                onChange={(e) => setNewMonthYear(e.target.value)}
+                                                onFocus={(e) => e.target.select()}
+                                                placeholder="년"
+                                                className="w-20 px-3 py-2 border rounded-lg text-center"
+                                            />
                                             <span className="font-bold">년</span>
-                                            <input type="number" value={newMonthMonth} onChange={(e) => setNewMonthMonth(e.target.value)} onFocus={(e) => e.target.select()} placeholder="월" min="1" max="12" className="w-20 px-3 py-2 border rounded-lg text-center" />
+                                            <input
+                                                type="number"
+                                                value={newMonthMonth}
+                                                onChange={(e) => setNewMonthMonth(e.target.value)}
+                                                onFocus={(e) => e.target.select()}
+                                                placeholder="월"
+                                                min="1"
+                                                max="12"
+                                                className="w-20 px-3 py-2 border rounded-lg text-center"
+                                            />
                                             <span className="font-bold">월</span>
-                                            <button onClick={addMonth} className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600">추가</button>
+                                            <button
+                                                onClick={addMonth}
+                                                className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600"
+                                            >
+                                                추가
+                                            </button>
                                         </div>
                                     </div>
 
@@ -564,21 +616,51 @@
                                                     {editingMonth === month ? (
                                                         <div className="space-y-2">
                                                             <div className="flex gap-2 items-center">
-                                                                <input type="number" value={editMonthYear} onChange={(e) => setEditMonthYear(e.target.value)} onFocus={(e) => e.target.select()} placeholder="년" className="w-20 px-2 py-2 border rounded text-center" />
+                                                                <input
+                                                                    type="number"
+                                                                    value={editMonthYear}
+                                                                    onChange={(e) => setEditMonthYear(e.target.value)}
+                                                                    onFocus={(e) => e.target.select()}
+                                                                    placeholder="년"
+                                                                    className="w-20 px-2 py-2 border rounded text-center"
+                                                                />
                                                                 <span className="font-bold">년</span>
-                                                                <input type="number" value={editMonthMonth} onChange={(e) => setEditMonthMonth(e.target.value)} onFocus={(e) => e.target.select()} placeholder="월" min="1" max="12" className="w-20 px-2 py-2 border rounded text-center" />
+                                                                <input
+                                                                    type="number"
+                                                                    value={editMonthMonth}
+                                                                    onChange={(e) => setEditMonthMonth(e.target.value)}
+                                                                    onFocus={(e) => e.target.select()}
+                                                                    placeholder="월"
+                                                                    min="1"
+                                                                    max="12"
+                                                                    className="w-20 px-2 py-2 border rounded text-center"
+                                                                />
                                                                 <span className="font-bold">월</span>
                                                             </div>
                                                             <div className="flex gap-2">
-                                                                <button onClick={saveEditMonth} className="flex-1 px-3 py-2 bg-green-500 text-white rounded text-sm font-bold hover:bg-green-600">저장</button>
-                                                                <button onClick={cancelEditMonth} className="flex-1 px-3 py-2 bg-gray-500 text-white rounded text-sm font-bold hover:bg-gray-600">취소</button>
+                                                                <button
+                                                                    onClick={saveEditMonth}
+                                                                    className="flex-1 px-3 py-2 bg-green-500 text-white rounded text-sm font-bold hover:bg-green-600"
+                                                                >
+                                                                    저장
+                                                                </button>
+                                                                <button
+                                                                    onClick={cancelEditMonth}
+                                                                    className="flex-1 px-3 py-2 bg-gray-500 text-white rounded text-sm font-bold hover:bg-gray-600"
+                                                                >
+                                                                    취소
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     ) : (
                                                         <div className="flex items-center justify-between">
                                                             <span className="font-medium">{month}</span>
-                                                            <button onClick={() => startEditMonth(month)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 flex items-center gap-1">
-                                                                <Edit size={14} /> 수정
+                                                            <button
+                                                                onClick={() => startEditMonth(month)}
+                                                                className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 flex items-center gap-1"
+                                                            >
+                                                                <Edit size={14} />
+                                                                수정
                                                             </button>
                                                         </div>
                                                     )}
@@ -593,13 +675,23 @@
                                             {months.map(month => (
                                                 <div key={month} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                                                     <span className="font-medium">{month}</span>
-                                                    <button onClick={() => deleteMonth(month)} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">삭제</button>
+                                                    <button
+                                                        onClick={() => deleteMonth(month)}
+                                                        className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600"
+                                                    >
+                                                        삭제
+                                                    </button>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
 
-                                    <button onClick={() => setShowMonthManage(false)} className="mt-4 w-full px-4 py-2 bg-gray-500 text-white rounded-lg font-bold hover:bg-gray-600">닫기</button>
+                                    <button
+                                        onClick={() => setShowMonthManage(false)}
+                                        className="mt-4 w-full px-4 py-2 bg-gray-500 text-white rounded-lg font-bold hover:bg-gray-600"
+                                    >
+                                        닫기
+                                    </button>
                                 </div>
                             )}
                         </div>
