@@ -105,6 +105,8 @@
         }
         const db = firebase.firestore();
 
+        const FIELDS = ['fixed', 'expense', 'income', 'refund', 'saving'];
+
         const ChevronDown = ({ size = 24 }) => (
             React.createElement('svg', {
                 width: size, height: size, viewBox: "0 0 24 24", fill: "none",
@@ -181,6 +183,12 @@
             const [editMonthMonth, setEditMonthMonth] = useState('');
             const saveTimeoutRef = useRef({});
 
+            // pending 저장 여부 확인 헬퍼
+            const hasPendingSave = (month, field) => {
+                const key = `${month}-${field}`;
+                return !!saveTimeoutRef.current[key];
+            };
+
             useEffect(() => {
                 const unsubscribe = db.collection('household').onSnapshot((snapshot) => {
                     const data = {};
@@ -206,7 +214,6 @@
                             refund: [],
                             saving: []
                         };
-
                         initialMonths.forEach(month => {
                             db.collection('household').doc(month).set(initialData);
                         });
@@ -219,16 +226,37 @@
 
                         setMonths(monthsList);
                         setMonthData(data);
-                        setLocalData(data);
+
+                        // ★ 핵심 수정: pending 저장이 있는 필드는 Firebase 데이터로 덮어쓰지 않음
+                        setLocalData(prev => {
+                            const merged = { ...prev };
+                            monthsList.forEach(month => {
+                                if (!prev[month]) {
+                                    // 새 월: Firebase 데이터 그대로 사용
+                                    merged[month] = data[month];
+                                } else {
+                                    // 기존 월: pending 저장 없는 필드만 업데이트
+                                    merged[month] = { ...prev[month] };
+                                    FIELDS.forEach(field => {
+                                        if (!hasPendingSave(month, field)) {
+                                            merged[month][field] = data[month][field];
+                                        }
+                                    });
+                                }
+                            });
+                            return merged;
+                        });
                         
-                        if (!activeMonth) {
-                            const savedMonth = localStorage.getItem('lastActiveMonth');
-                            if (savedMonth && monthsList.includes(savedMonth)) {
-                                setActiveMonth(savedMonth);
-                            } else {
-                                setActiveMonth(monthsList[0]);
+                        setActiveMonth(prev => {
+                            if (!prev) {
+                                const savedMonth = localStorage.getItem('lastActiveMonth');
+                                if (savedMonth && monthsList.includes(savedMonth)) {
+                                    return savedMonth;
+                                }
+                                return monthsList[0];
                             }
-                        }
+                            return prev;
+                        });
                         
                         setIsLoading(false);
                     }
@@ -238,12 +266,16 @@
                     Object.keys(saveTimeoutRef.current).forEach(key => {
                         if (saveTimeoutRef.current[key]) {
                             clearTimeout(saveTimeoutRef.current[key]);
+                            saveTimeoutRef.current[key] = null;
                         }
                     });
-                    
-                    if (localData[activeMonth]) {
-                        db.collection('household').doc(activeMonth).update(localData[activeMonth]);
-                    }
+                    setLocalData(prev => {
+                        const month = localStorage.getItem('lastActiveMonth');
+                        if (month && prev[month]) {
+                            db.collection('household').doc(month).update(prev[month]);
+                        }
+                        return prev;
+                    });
                 };
 
                 window.addEventListener('beforeunload', handleBeforeUnload);
@@ -258,18 +290,12 @@
 
             const sortByDate = (items, type) => {
                 const hasEditing = items.some(item => editingItems[`${type}-${item.id}`]);
-                if (hasEditing) {
-                    return items;
-                }
-                
+                if (hasEditing) return items;
                 return [...items].sort((a, b) => {
                     if (!a.date && !b.date) return 0;
                     if (!a.date) return 1;
                     if (!b.date) return -1;
-                    
-                    const dateA = new Date(a.date);
-                    const dateB = new Date(b.date);
-                    return dateA - dateB;
+                    return new Date(a.date) - new Date(b.date);
                 });
             };
 
@@ -282,6 +308,7 @@
                 return items.reduce((sum, item) => sum + (parseInt(item.amount) || 0), 0);
             };
 
+            // ★ 수정: 저장 완료 후 ref를 null로 정리해야 다음 snapshot이 정상 반영됨
             const saveToFirebase = (field, updatedData) => {
                 const key = `${activeMonth}-${field}`;
                 
@@ -291,7 +318,9 @@
 
                 saveTimeoutRef.current[key] = setTimeout(() => {
                     db.collection('household').doc(activeMonth).update({ [field]: updatedData })
-                        .then(() => console.log('저장 완료'))
+                        .then(() => {
+                            saveTimeoutRef.current[key] = null; // ★ 저장 완료 후 null 처리
+                        })
                         .catch(err => console.error('저장 실패:', err));
                 }, 500);
             };
@@ -321,30 +350,18 @@
 
             const saveEditMonth = async () => {
                 if (!editingMonth) return;
-                
                 const monthFormatted = editMonthMonth.toString().padStart(2, '0');
                 const newMonthName = `${editMonthYear}년${monthFormatted}월`;
-                
-                if (newMonthName === editingMonth) {
-                    setEditingMonth(null);
-                    return;
-                }
-                
-                if (months.includes(newMonthName)) {
-                    alert('이미 존재하는 월입니다.');
-                    return;
-                }
-                
+                if (newMonthName === editingMonth) { setEditingMonth(null); return; }
+                if (months.includes(newMonthName)) { alert('이미 존재하는 월입니다.'); return; }
                 try {
                     const oldData = localData[editingMonth];
                     await db.collection('household').doc(newMonthName).set(oldData);
                     await db.collection('household').doc(editingMonth).delete();
-                    
                     if (activeMonth === editingMonth) {
                         setActiveMonth(newMonthName);
                         localStorage.setItem('lastActiveMonth', newMonthName);
                     }
-                    
                     setEditingMonth(null);
                 } catch (error) {
                     console.error('월 이름 수정 실패:', error);
@@ -358,28 +375,25 @@
                 setEditMonthMonth('');
             };
 
+            // ★ 수정: timeout 취소 후 null 처리
             const changeMonth = (newMonth) => {
                 if (localData[activeMonth]) {
                     Object.keys(saveTimeoutRef.current).forEach(key => {
                         if (saveTimeoutRef.current[key]) {
                             clearTimeout(saveTimeoutRef.current[key]);
+                            saveTimeoutRef.current[key] = null; // ★
                         }
                     });
-                    
                     db.collection('household').doc(activeMonth).update(localData[activeMonth])
                         .then(() => console.log('월 변경 전 저장 완료'))
                         .catch(err => console.error('저장 실패:', err));
                 }
-                
                 setActiveMonth(newMonth);
                 localStorage.setItem('lastActiveMonth', newMonth);
             };
 
             const deleteMonth = (month) => {
-                if (months.length <= 1) {
-                    alert('마지막 월은 삭제할 수 없습니다.');
-                    return;
-                }
+                if (months.length <= 1) { alert('마지막 월은 삭제할 수 없습니다.'); return; }
                 if (window.confirm(`${month}을 삭제하시겠습니까?`)) {
                     db.collection('household').doc(month).delete();
                     if (activeMonth === month) {
@@ -395,43 +409,45 @@
             const addItem = (type) => {
                 const newItem = { id: Date.now(), date: '', content: '', amount: '' };
                 const updated = [...(currentData[type] || []), newItem];
-                setLocalData({ ...localData, [activeMonth]: { ...currentData, [type]: updated } });
+                setLocalData(prev => ({ ...prev, [activeMonth]: { ...currentData, [type]: updated } }));
                 db.collection('household').doc(activeMonth).update({ [type]: updated });
-                setEditingItems({ ...editingItems, [`${type}-${newItem.id}`]: true });
+                setEditingItems(prev => ({ ...prev, [`${type}-${newItem.id}`]: true }));
             };
 
             const updateItem = (type, id, field, value) => {
                 const updated = (currentData[type] || []).map(item =>
                     item.id === id ? { ...item, [field]: value } : item
                 );
-                setLocalData({ ...localData, [activeMonth]: { ...currentData, [type]: updated } });
+                setLocalData(prev => ({ ...prev, [activeMonth]: { ...currentData, [type]: updated } }));
                 saveToFirebase(type, updated);
             };
 
             const deleteItem = (type, id) => {
                 if (window.confirm('삭제하시겠습니까?')) {
                     const updated = (currentData[type] || []).filter(item => item.id !== id);
-                    setLocalData({ ...localData, [activeMonth]: { ...currentData, [type]: updated } });
+                    setLocalData(prev => ({ ...prev, [activeMonth]: { ...currentData, [type]: updated } }));
                     db.collection('household').doc(activeMonth).update({ [type]: updated });
                 }
             };
 
             const toggleEdit = (type, id) => {
                 const key = `${type}-${id}`;
-                setEditingItems({ ...editingItems, [key]: !editingItems[key] });
+                setEditingItems(prev => ({ ...prev, [key]: !prev[key] }));
             };
 
+            // ★ 수정: timeout 취소 후 null 처리
             const completeEdit = (type, id) => {
                 const key = `${type}-${id}`;
                 const timeoutKey = `${activeMonth}-${type}`;
                 if (saveTimeoutRef.current[timeoutKey]) {
                     clearTimeout(saveTimeoutRef.current[timeoutKey]);
+                    saveTimeoutRef.current[timeoutKey] = null; // ★
                 }
                 const fieldData = currentData[type];
                 db.collection('household').doc(activeMonth).update({ [type]: fieldData })
                     .then(() => console.log('즉시 저장 완료'))
                     .catch(err => console.error('저장 실패:', err));
-                setEditingItems({ ...editingItems, [key]: false });
+                setEditingItems(prev => ({ ...prev, [key]: false }));
             };
 
             const fixedTotal = calculateTotal(currentData.fixed);
@@ -440,7 +456,6 @@
             const refundTotal = calculateTotal(currentData.refund || []);
             const savingTotal = calculateTotal(currentData.saving || []);
             const totalExpenseWithRefund = fixedTotal + expenseTotal - refundTotal;
-            // 통장잔액: 수입 + 환불 - 고정지출 - 지출 - 저금
             const balance = incomeTotal + refundTotal - fixedTotal - expenseTotal - savingTotal;
 
             if (isLoading) {
@@ -454,7 +469,6 @@
                 );
             }
 
-            // 섹션 렌더링 공통 함수
             const renderSection = (type, label, emoji, colorClass, bgClass, borderClass, isExpanded, setExpanded) => (
                 <div className="bg-white shadow-lg rounded-2xl mb-3 overflow-hidden">
                     <button
