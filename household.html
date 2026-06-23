@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>💰 다솔, 호철 부자되기 프로젝트</title>
+    <title>💰 부부 공유 가계부</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
@@ -15,8 +15,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
         }
         #root {
-            width: 100%; max-width: 430px; min-height: 100vh;
-            background: linear-gradient(135deg,#0f0c29,#302b63,#24243e);
+            width: 100%; max-width: 430px; min-height: 100vh; background: #f9fafb;
             box-shadow: 0 10px 40px rgba(0,0,0,0.15); border-radius: 20px; overflow: hidden;
         }
         @media (max-width: 768px) {
@@ -26,274 +25,418 @@
         input[type="number"] { -moz-appearance: textfield; }
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="date"] { min-width: 110px; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        button { font-family: inherit; cursor: pointer; }
-        input, textarea { font-family: inherit; }
+        button { font-family: inherit; cursor: pointer; border: none; }
+        input { font-family: inherit; }
+
+        .loading-screen {
+            display: flex; align-items: center; justify-content: center;
+            height: 100vh; background: #f9fafb;
+        }
+        .loading-screen .emoji { font-size: 40px; margin-bottom: 16px; }
+        .loading-screen .txt { font-size: 20px; font-weight: bold; color: #374151; text-align: center; }
+
+        .header {
+            position: sticky; top: 0; z-index: 20;
+            background: linear-gradient(to right, #9333ea, #2563eb);
+            color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 16px;
+        }
+        .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .header-top a.back { color: rgba(255,255,255,0.85); font-size: 22px; text-decoration: none; }
+        .header-top h1 { font-size: 20px; font-weight: bold; }
+        .icon-btn {
+            padding: 8px; background: rgba(255,255,255,0.2); border-radius: 8px;
+            color: white; display: flex; align-items: center; justify-content: center;
+        }
+        .icon-btn:hover { background: rgba(255,255,255,0.3); }
+
+        .month-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
+        .month-tab {
+            flex-shrink: 0; padding: 8px 16px; border-radius: 8px;
+            font-weight: bold; font-size: 14px; transition: all 0.2s;
+            background: #7e22ce; color: white;
+        }
+        .month-tab:hover { background: #6b21a8; }
+        .month-tab.active { background: white; color: #9333ea; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transform: scale(1.05); }
+
+        .manage-panel { margin-top: 12px; padding: 16px; background: white; border-radius: 8px; color: black; }
+        .manage-panel h3 { font-weight: bold; margin-bottom: 12px; font-size: 18px; }
+        .manage-label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 8px; }
+        .manage-row { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+        .num-input { width: 70px; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; text-align: center; }
+        .month-list { display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; margin-bottom: 16px; }
+        .month-list-item { padding: 8px; background: #f9fafb; border-radius: 6px; }
+        .month-list-row { display: flex; align-items: center; justify-content: space-between; }
+
+        .btn { padding: 8px 16px; border-radius: 8px; font-weight: bold; color: white; font-size: 14px; }
+        .btn-green { background: #22c55e; } .btn-green:hover { background: #16a34a; }
+        .btn-gray { background: #6b7280; } .btn-gray:hover { background: #4b5563; }
+        .btn-blue { background: #3b82f6; } .btn-blue:hover { background: #2563eb; }
+        .btn-red { background: #ef4444; } .btn-red:hover { background: #dc2626; }
+        .btn-sm { padding: 4px 12px; font-size: 14px; }
+
+        .content { padding: 12px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+        .summary-card { border-radius: 12px; padding: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid; }
+        .summary-card .label { font-size: 12px; font-weight: bold; margin-bottom: 4px; }
+        .summary-card .value { font-size: 14px; font-weight: bold; word-break: break-word; line-height: 1.25; }
+        .sc-green { background: #dcfce7; border-color: #bbf7d0; }
+        .sc-green .label { color: #166534; } .sc-green .value { color: #15803d; }
+        .sc-red { background: #fee2e2; border-color: #fecaca; }
+        .sc-red .label { color: #991b1b; } .sc-red .value { color: #b91c1c; }
+        .sc-blue { background: #dbeafe; border-color: #bfdbfe; }
+        .sc-blue .label { color: #1e40af; } .sc-blue .value { color: #1d4ed8; }
+
+        .section { background: white; box-shadow: 0 10px 15px rgba(0,0,0,0.1); border-radius: 16px; margin-bottom: 12px; overflow: hidden; }
+        .section-header {
+            width: 100%; padding: 12px 16px; display: flex; align-items: center;
+            justify-content: space-between; color: white; transition: background 0.2s;
+        }
+        .section-header span.title { font-size: 18px; font-weight: bold; }
+        .sh-purple { background: #9333ea; } .sh-purple:hover { background: #7e22ce; }
+        .sh-red { background: #dc2626; } .sh-red:hover { background: #b91c1c; }
+        .sh-blue { background: #2563eb; } .sh-blue:hover { background: #1d4ed8; }
+        .sh-yellow { background: #ca8a04; } .sh-yellow:hover { background: #a16207; }
+        .sh-teal { background: #0d9488; } .sh-teal:hover { background: #0f766e; }
+
+        .section-body { padding: 12px; }
+        .item-list { display: flex; flex-direction: column; gap: 8px; }
+        .empty { text-align: center; padding: 32px 0; color: #9ca3af; font-size: 14px; }
+        .item {
+            padding: 8px; border-radius: 8px; border: 1px solid;
+        }
+        .ib-purple { background: #faf5ff; border-color: #e9d5ff; }
+        .ib-red { background: #fef2f2; border-color: #fecaca; }
+        .ib-blue { background: #eff6ff; border-color: #bfdbfe; }
+        .ib-yellow { background: #fefce8; border-color: #fef08a; }
+        .ib-teal { background: #f0fdfa; border-color: #99f6e4; }
+
+        .item-top { display: flex; gap: 4px; align-items: flex-start; margin-bottom: 8px; }
+        .item-date { width: 130px; padding: 8px 4px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; flex-shrink: 0; }
+        .item-date:disabled { background: #f3f4f6; color: #6b7280; }
+        .del-btn { padding: 8px; color: #ef4444; border-radius: 4px; background: none; flex-shrink: 0; }
+        .del-btn:hover { background: #fef2f2; }
+        .item-content { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; margin-bottom: 8px; }
+        .item-content:disabled { background: #f3f4f6; color: #6b7280; }
+        .item-amount-row { display: flex; gap: 4px; align-items: center; }
+        .item-amount-input { flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; }
+        .item-amount-view { flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; background: #f3f4f6; font-size: 12px; font-weight: bold; text-align: right; }
+        .edit-btn { padding: 8px 16px; border-radius: 4px; font-weight: bold; font-size: 12px; color: white; }
+        .edit-btn.editing { background: #22c55e; } .edit-btn.normal { background: #3b82f6; }
+        .add-btn {
+            margin-top: 12px; width: 100%; display: flex; align-items: center;
+            justify-content: center; gap: 8px; padding: 12px; color: white;
+            border-radius: 8px; font-weight: bold;
+        }
     </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="root"><div class="loading-screen"><div style="text-align:center"><div class="emoji">💰</div><div class="txt">로딩 중...</div></div></div></div>
     <input type="file" id="restoreFileInput" accept=".json,application/json" style="display:none" onchange="restoreData(event)">
 
     <script>
         var firebaseConfig = {
-            apiKey: "AIzaSyCqFjwBKOKRMVkSNOhVeFbl0M0yNfKj7TM",
+            apiKey: "AIzaSyDOdbB-ImQ6GuqCX1r4bS_miB5IVjD989Y",
             authDomain: "dasol-moneybook-2dec7.firebaseapp.com",
             projectId: "dasol-moneybook-2dec7",
             storageBucket: "dasol-moneybook-2dec7.firebasestorage.app",
-            messagingSenderId: "998075249498",
-            appId: "1:998075249498:web:c4900bdf80094b78b4ed85"
+            messagingSenderId: "448263372546",
+            appId: "1:448263372546:web:67a6508ca09b117e984c1b"
         };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         var db = firebase.firestore();
-        var COLLECTION = 'saving_project';
 
-        var SECTIONS = {
-            principal: { title: '원금', emoji: '💵', from: '#11998e', to: '#38ef7d', color: '#11998e' },
-            interest:  { title: '이자', emoji: '📈', from: '#f093fb', to: '#f5576c', color: '#f5576c' },
-            expense:   { title: '지출', emoji: '💸', from: '#ff6b6b', to: '#ee5a24', color: '#ee5a24' }
+        var FIELDS = ['fixed', 'expense', 'income', 'refund', 'saving'];
+        var SECTION_META = {
+            fixed:   { label: '고정지출', emoji: '🏠', sh: 'sh-purple', ib: 'ib-purple' },
+            expense: { label: '지출',     emoji: '💸', sh: 'sh-red',    ib: 'ib-red' },
+            income:  { label: '수입',     emoji: '💵', sh: 'sh-blue',   ib: 'ib-blue' },
+            refund:  { label: '환불',     emoji: '💳', sh: 'sh-yellow', ib: 'ib-yellow' },
+            saving:  { label: '저금',     emoji: '🐷', sh: 'sh-teal',   ib: 'ib-teal' }
         };
 
+        // ===== 상태 =====
         var state = {
-            accounts: [],
-            activeAccount: '',
-            accountData: {},      // { accName: {principal:[],interest:[],expense:[],memo:''} }
-            isLoading: true,
-            expandedSection: null,
-            showAddAccount: false,
-            newAccountName: '',
-            showSettings: false,
-            showAddForm: null,    // type
-            addForm: { date: '', amount: '', memo: '' },
-            editingItem: null,    // { type, id }
-            editForm: { date: '', amount: '', memo: '' },
-            memoText: '',
-            isMemoEditing: false,
-            memoBackup: ''
+            activeMonth: '',
+            months: [],
+            localData: {},        // 화면에 그리는 데이터 (로컬 우선)
+            firebaseData: {},     // Firebase 원본
+            expanded: { fixed: false, expense: false, income: false, refund: false, saving: false },
+            editingItems: {},     // key: "type-id" -> true
+            showMonthManage: false,
+            newMonthYear: '25',
+            newMonthMonth: '01',
+            editingMonth: null,
+            editMonthYear: '',
+            editMonthMonth: '',
+            isLoading: true
         };
-        var accountListeners = {};
-        var accountsLoaded = false;
+        var saveTimeouts = {};    // race condition 방지용 pending 저장 타이머
 
-        function getTodayStr() {
-            var d = new Date();
-            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        function hasPendingSave(month, field) {
+            return !!saveTimeouts[month + '-' + field];
         }
-        function formatMoney(amount) {
-            if (amount === 0) return '0원';
-            return amount.toLocaleString('ko-KR') + '원';
+
+        function formatNumber(num) {
+            if (!num) return '0';
+            return parseInt(num).toLocaleString('ko-KR');
         }
-        function formatDate(dateStr) {
-            if (!dateStr) return '';
-            var d = new Date(dateStr);
-            return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0');
+        function calcTotal(items) {
+            return (items || []).reduce(function (s, it) { return s + (parseInt(it.amount) || 0); }, 0);
         }
         function escapeHtml(str) {
             return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
                 return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
             });
         }
-        function docId(name) { return name.replace(/[\/\\]/g, '_'); }
 
-        function getCurrentData() {
-            return state.accountData[state.activeAccount] || { principal: [], interest: [], expense: [], memo: '' };
-        }
+        // ===== Firebase 구독 =====
+        db.collection('household').onSnapshot(function (snapshot) {
+            var data = {};
+            var monthsList = [];
+            snapshot.forEach(function (doc) {
+                monthsList.push(doc.id);
+                var d = doc.data();
+                d.refund = d.refund || [];
+                d.saving = d.saving || [];
+                data[doc.id] = d;
+            });
 
-        // ===== 계좌 목록 구독 =====
-        db.collection(COLLECTION).doc('accounts').onSnapshot(function (doc) {
-            if (doc.exists) {
-                var accs = doc.data().list || [];
-                state.accounts = accs;
-                var lastActive = localStorage.getItem('saving_active_account');
-                if (!state.activeAccount) {
-                    if (lastActive && accs.indexOf(lastActive) !== -1) state.activeAccount = lastActive;
-                    else if (accs.length > 0) state.activeAccount = accs[0];
-                } else if (accs.indexOf(state.activeAccount) === -1 && accs.length > 0) {
-                    state.activeAccount = accs[0];
-                }
-            } else {
-                var defaults = ['결혼자금남은거', '비상금', '비상금2'];
-                db.collection(COLLECTION).doc('accounts').set({ list: defaults });
-                state.accounts = defaults;
-                state.activeAccount = defaults[0];
+            if (monthsList.length === 0) {
+                var initialMonths = ['25년11월', '25년12월', '26년01월'];
+                var initialData = { fixed: [], expense: [], income: [], refund: [], saving: [] };
+                initialMonths.forEach(function (m) {
+                    db.collection('household').doc(m).set(initialData);
+                });
+                return;
             }
+
+            monthsList.sort(function (a, b) {
+                var pa = a.replace('년', '-').replace('월', '').split('-');
+                var pb = b.replace('년', '-').replace('월', '').split('-');
+                return parseInt(pb[0] + pb[1]) - parseInt(pa[0] + pa[1]);
+            });
+
+            state.months = monthsList;
+            state.firebaseData = data;
+
+            // ★ smart merge: pending 저장이 있는 필드는 Firebase 데이터로 덮어쓰지 않음
+            var prev = state.localData;
+            var merged = {};
+            monthsList.forEach(function (month) {
+                if (!prev[month]) {
+                    merged[month] = data[month];
+                } else {
+                    merged[month] = {};
+                    FIELDS.forEach(function (field) {
+                        if (hasPendingSave(month, field)) {
+                            merged[month][field] = prev[month][field];
+                        } else {
+                            merged[month][field] = data[month][field];
+                        }
+                    });
+                }
+            });
+            state.localData = merged;
+
+            if (!state.activeMonth) {
+                var saved = localStorage.getItem('lastActiveMonth');
+                state.activeMonth = (saved && monthsList.indexOf(saved) !== -1) ? saved : monthsList[0];
+            } else if (monthsList.indexOf(state.activeMonth) === -1) {
+                state.activeMonth = monthsList[0];
+            }
+
             state.isLoading = false;
-            subscribeAccounts();
             render();
         }, function (err) {
-            console.error('계좌 구독 오류:', err);
+            console.error('구독 오류:', err);
             document.getElementById('root').innerHTML =
-                '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:white;text-align:center">' +
-                '<div><div style="font-size:48px;margin-bottom:16px">⚠️</div>' +
-                '<div style="font-size:16px">데이터를 불러올 수 없습니다.<br>인터넷 연결을 확인해주세요.</div></div></div>';
+                '<div class="loading-screen"><div style="text-align:center"><div class="emoji">⚠️</div>' +
+                '<div class="txt">데이터를 불러올 수 없습니다.<br>인터넷 연결을 확인해주세요.</div></div></div>';
         });
 
-        // ===== 각 계좌 데이터 구독 (총합산용) =====
-        function subscribeAccounts() {
-            Object.keys(accountListeners).forEach(function (k) {
-                if (accountListeners[k]) accountListeners[k]();
+        window.addEventListener('beforeunload', function () {
+            Object.keys(saveTimeouts).forEach(function (key) {
+                if (saveTimeouts[key]) { clearTimeout(saveTimeouts[key]); saveTimeouts[key] = null; }
             });
-            accountListeners = {};
-            state.accounts.forEach(function (accName) {
-                var id = docId(accName);
-                accountListeners[accName] = db.collection(COLLECTION).doc(id).onSnapshot(function (doc) {
-                    if (doc.exists) {
-                        state.accountData[accName] = doc.data();
-                    } else {
-                        state.accountData[accName] = { principal: [], interest: [], expense: [], memo: '' };
-                    }
-                    if (accName === state.activeAccount && !state.isMemoEditing) {
-                        state.memoText = state.accountData[accName].memo || '';
-                    }
-                    render();
-                });
-            });
-        }
-
-        // ===== 저장 =====
-        function saveAccountData(accName, data) {
-            var id = docId(accName);
-            return db.collection(COLLECTION).doc(id).set(data, { merge: true })
-                .catch(function (err) {
-                    console.error('저장 실패:', err);
-                    alert('저장에 실패했습니다. 인터넷 연결을 확인해주세요.');
-                });
-        }
-
-        // ===== 총합산 =====
-        function totalBalance() {
-            return state.accounts.reduce(function (sum, accName) {
-                var data = state.accountData[accName] || { principal: [], interest: [], expense: [] };
-                var p = (data.principal || []).reduce(function (s, it) { return s + it.amount; }, 0);
-                var i = (data.interest || []).reduce(function (s, it) { return s + it.amount; }, 0);
-                var e = (data.expense || []).reduce(function (s, it) { return s + it.amount; }, 0);
-                return sum + p + i - e;
-            }, 0);
-        }
-
-        // ===== 계좌 관리 =====
-        function setActiveAccount(acc) {
-            state.activeAccount = acc;
-            state.expandedSection = null;
-            state.showAddForm = null;
-            state.editingItem = null;
-            state.isMemoEditing = false;
-            localStorage.setItem('saving_active_account', acc);
-            var data = state.accountData[acc];
-            state.memoText = data ? (data.memo || '') : '';
-            render();
-        }
-        function addAccount() {
-            var name = state.newAccountName.trim();
-            if (!name) return;
-            if (state.accounts.indexOf(name) !== -1) { alert('이미 존재하는 계좌입니다.'); return; }
-            var newList = state.accounts.concat([name]);
-            db.collection(COLLECTION).doc('accounts').set({ list: newList });
-            state.newAccountName = '';
-            state.showAddAccount = false;
-            state.activeAccount = name;
-            localStorage.setItem('saving_active_account', name);
-            render();
-        }
-        function deleteAccount(accName) {
-            if (!confirm('"' + accName + '" 계좌를 삭제하시겠습니까?\n모든 데이터가 삭제됩니다.')) return;
-            var newList = state.accounts.filter(function (a) { return a !== accName; });
-            db.collection(COLLECTION).doc('accounts').set({ list: newList });
-            db.collection(COLLECTION).doc(docId(accName)).delete();
-            if (state.activeAccount === accName) state.activeAccount = newList[0] || '';
-            render();
-        }
-        function renameAccount(oldName) {
-            var newName = prompt('새 이름을 입력하세요:', oldName);
-            if (!newName || newName.trim() === '' || newName.trim() === oldName) return;
-            var trimmed = newName.trim();
-            if (state.accounts.indexOf(trimmed) !== -1) { alert('이미 존재하는 이름입니다.'); return; }
-            var newList = state.accounts.map(function (a) { return a === oldName ? trimmed : a; });
-            db.collection(COLLECTION).doc('accounts').set({ list: newList });
-            var oldData = state.accountData[oldName];
-            if (oldData) {
-                db.collection(COLLECTION).doc(docId(trimmed)).set(oldData);
-                db.collection(COLLECTION).doc(docId(oldName)).delete();
+            var month = state.activeMonth;
+            if (month && state.localData[month]) {
+                db.collection('household').doc(month).update(state.localData[month]);
             }
-            if (state.activeAccount === oldName) state.activeAccount = trimmed;
-            render();
+        });
+
+        function getCurrentData() {
+            return state.localData[state.activeMonth] || { fixed: [], expense: [], income: [], refund: [], saving: [] };
+        }
+
+        function sortByDate(items, type) {
+            var hasEditing = items.some(function (it) { return state.editingItems[type + '-' + it.id]; });
+            if (hasEditing) return items;
+            return items.slice().sort(function (a, b) {
+                if (!a.date && !b.date) return 0;
+                if (!a.date) return 1;
+                if (!b.date) return -1;
+                return new Date(a.date) - new Date(b.date);
+            });
+        }
+
+        // ===== 저장 (디바운스 + pending 보호) =====
+        function saveToFirebase(field, updatedData) {
+            var key = state.activeMonth + '-' + field;
+            if (saveTimeouts[key]) clearTimeout(saveTimeouts[key]);
+            saveTimeouts[key] = setTimeout(function () {
+                var update = {};
+                update[field] = updatedData;
+                db.collection('household').doc(state.activeMonth).update(update)
+                    .then(function () { saveTimeouts[key] = null; })
+                    .catch(function (err) { console.error('저장 실패:', err); saveTimeouts[key] = null; });
+            }, 500);
         }
 
         // ===== 항목 CRUD =====
         function addItem(type) {
-            var f = state.addForm;
-            if (!f.date || !f.amount) { alert('날짜와 금액을 입력해주세요.'); return; }
             var cur = getCurrentData();
-            var newItem = { id: Date.now().toString(), date: f.date, amount: parseInt(f.amount), memo: f.memo || '' };
-            var list = (cur[type] || []).concat([newItem]);
-            list.sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
-            var updated = Object.assign({}, cur); updated[type] = list;
-            state.accountData[state.activeAccount] = updated;
-            saveAccountData(state.activeAccount, updated);
-            state.addForm = { date: '', amount: '', memo: '' };
-            state.showAddForm = null;
-            render();
-        }
-        function deleteItem(type, itemId) {
-            if (!confirm('삭제하시겠습니까?')) return;
-            var cur = getCurrentData();
-            var list = (cur[type] || []).filter(function (it) { return it.id !== itemId; });
-            var updated = Object.assign({}, cur); updated[type] = list;
-            state.accountData[state.activeAccount] = updated;
-            saveAccountData(state.activeAccount, updated);
-            render();
-        }
-        function startEdit(type, item) {
-            state.editingItem = { type: type, id: item.id };
-            state.editForm = { date: item.date, amount: item.amount.toString(), memo: item.memo || '' };
-            render();
-        }
-        function saveEdit() {
-            if (!state.editingItem) return;
-            var type = state.editingItem.type, id = state.editingItem.id;
-            var f = state.editForm;
-            if (!f.date || !f.amount) { alert('날짜와 금액을 입력해주세요.'); return; }
-            var cur = getCurrentData();
-            var list = (cur[type] || []).map(function (it) {
-                return it.id === id ? { id: it.id, date: f.date, amount: parseInt(f.amount), memo: f.memo || '' } : it;
-            });
-            list.sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
-            var updated = Object.assign({}, cur); updated[type] = list;
-            state.accountData[state.activeAccount] = updated;
-            saveAccountData(state.activeAccount, updated);
-            state.editingItem = null;
-            state.editForm = { date: '', amount: '', memo: '' };
-            render();
-        }
-        function cancelEdit() {
-            state.editingItem = null;
-            state.editForm = { date: '', amount: '', memo: '' };
+            var newItem = { id: Date.now(), date: '', content: '', amount: '' };
+            var updated = (cur[type] || []).concat([newItem]);
+            cur[type] = updated;
+            state.localData[state.activeMonth] = cur;
+            var update = {}; update[type] = updated;
+            db.collection('household').doc(state.activeMonth).update(update);
+            state.editingItems[type + '-' + newItem.id] = true;
             render();
         }
 
-        // ===== 메모 (보호 편집) =====
-        function startMemoEdit() { state.memoBackup = state.memoText; state.isMemoEditing = true; render(); }
-        function saveMemo() {
+        function updateItem(type, id, field, value) {
             var cur = getCurrentData();
-            var updated = Object.assign({}, cur); updated.memo = state.memoText;
-            state.accountData[state.activeAccount] = updated;
-            saveAccountData(state.activeAccount, updated);
-            state.isMemoEditing = false;
+            var updated = (cur[type] || []).map(function (it) {
+                if (it.id === id) { var c = Object.assign({}, it); c[field] = value; return c; }
+                return it;
+            });
+            cur[type] = updated;
+            state.localData[state.activeMonth] = cur;
+            saveToFirebase(type, updated);
+            // 입력 중에는 전체 재렌더링하지 않음 (포커스 유지). 값만 메모리에 반영.
+        }
+
+        function deleteItem(type, id) {
+            if (!confirm('삭제하시겠습니까?')) return;
+            var cur = getCurrentData();
+            var updated = (cur[type] || []).filter(function (it) { return it.id !== id; });
+            cur[type] = updated;
+            state.localData[state.activeMonth] = cur;
+            var update = {}; update[type] = updated;
+            db.collection('household').doc(state.activeMonth).update(update);
             render();
         }
-        function cancelMemoEdit() { state.memoText = state.memoBackup; state.isMemoEditing = false; render(); }
+
+        function toggleEdit(type, id) {
+            var key = type + '-' + id;
+            state.editingItems[key] = !state.editingItems[key];
+            render();
+        }
+
+        function completeEdit(type, id) {
+            var key = type + '-' + id;
+            var timeoutKey = state.activeMonth + '-' + type;
+            if (saveTimeouts[timeoutKey]) { clearTimeout(saveTimeouts[timeoutKey]); saveTimeouts[timeoutKey] = null; }
+            var cur = getCurrentData();
+            var update = {}; update[type] = cur[type];
+            db.collection('household').doc(state.activeMonth).update(update)
+                .catch(function (err) { console.error('저장 실패:', err); });
+            state.editingItems[key] = false;
+            render();
+        }
+
+        // ===== 월 관리 =====
+        function changeMonth(newMonth) {
+            if (state.localData[state.activeMonth]) {
+                Object.keys(saveTimeouts).forEach(function (key) {
+                    if (saveTimeouts[key]) { clearTimeout(saveTimeouts[key]); saveTimeouts[key] = null; }
+                });
+                db.collection('household').doc(state.activeMonth).update(state.localData[state.activeMonth])
+                    .catch(function (err) { console.error('저장 실패:', err); });
+            }
+            state.activeMonth = newMonth;
+            localStorage.setItem('lastActiveMonth', newMonth);
+            render();
+        }
+
+        function addMonth() {
+            var mm = String(state.newMonthMonth).padStart(2, '0');
+            var newMonth = state.newMonthYear + '년' + mm + '월';
+            if (state.months.indexOf(newMonth) === -1) {
+                db.collection('household').doc(newMonth).set({ fixed: [], expense: [], income: [], refund: [], saving: [] });
+                state.newMonthYear = '25';
+                state.newMonthMonth = '01';
+            }
+        }
+
+        function startEditMonth(month) {
+            var parts = month.replace('년', '-').replace('월', '').split('-');
+            state.editingMonth = month;
+            state.editMonthYear = parts[0];
+            state.editMonthMonth = parts[1];
+            render();
+        }
+
+        function saveEditMonth() {
+            if (!state.editingMonth) return;
+            var mm = String(state.editMonthMonth).padStart(2, '0');
+            var newName = state.editMonthYear + '년' + mm + '월';
+            if (newName === state.editingMonth) { state.editingMonth = null; render(); return; }
+            if (state.months.indexOf(newName) !== -1) { alert('이미 존재하는 월입니다.'); return; }
+            var oldData = state.localData[state.editingMonth];
+            var oldMonth = state.editingMonth;
+            db.collection('household').doc(newName).set(oldData).then(function () {
+                return db.collection('household').doc(oldMonth).delete();
+            }).then(function () {
+                if (state.activeMonth === oldMonth) {
+                    state.activeMonth = newName;
+                    localStorage.setItem('lastActiveMonth', newName);
+                }
+                state.editingMonth = null;
+                render();
+            }).catch(function (err) {
+                console.error('월 이름 수정 실패:', err);
+                alert('월 이름 수정에 실패했습니다.');
+            });
+        }
+
+        function cancelEditMonth() {
+            state.editingMonth = null;
+            state.editMonthYear = '';
+            state.editMonthMonth = '';
+            render();
+        }
+
+        function deleteMonth(month) {
+            if (state.months.length <= 1) { alert('마지막 월은 삭제할 수 없습니다.'); return; }
+            if (confirm(month + '을 삭제하시겠습니까?')) {
+                db.collection('household').doc(month).delete();
+                if (state.activeMonth === month) {
+                    var index = state.months.indexOf(month);
+                    var newActive = state.months[index === 0 ? 1 : index - 1];
+                    state.activeMonth = newActive;
+                    localStorage.setItem('lastActiveMonth', newActive);
+                }
+            }
+        }
 
         // ===== 백업 / 복원 =====
         function backupData() {
+            // Firebase 원본(firebaseData)에 현재 로컬 변경분을 합쳐 전체 내보내기
             var allData = {};
-            state.accounts.forEach(function (acc) {
-                allData[acc] = state.accountData[acc] || { principal: [], interest: [], expense: [], memo: '' };
+            state.months.forEach(function (m) {
+                allData[m] = state.localData[m] || state.firebaseData[m] || {};
             });
             var backup = {
-                type: 'saving-backup',
+                type: 'household-backup',
                 version: 1,
                 exportedAt: new Date().toISOString(),
-                accounts: state.accounts,
+                months: state.months,
                 data: allData
             };
             var today = new Date();
@@ -304,7 +447,7 @@
             var url = URL.createObjectURL(blob);
             var a = document.createElement('a');
             a.href = url;
-            a.download = '부자되기백업_' + stamp + '.json';
+            a.download = '가계부백업_' + stamp + '.json';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -323,30 +466,27 @@
             reader.onload = function (e) {
                 try {
                     var backup = JSON.parse(e.target.result);
-                    if (backup.type !== 'saving-backup' || !backup.data) {
-                        alert('부자되기 백업 파일이 아닙니다.\n올바른 파일을 선택해주세요.');
+                    if (backup.type !== 'household-backup' || !backup.data) {
+                        alert('가계부 백업 파일이 아닙니다.\n올바른 파일을 선택해주세요.');
                         return;
                     }
-                    var accCount = (backup.accounts || []).length;
+                    var monthCount = (backup.months || []).length;
                     var dateStr = backup.exportedAt ? backup.exportedAt.slice(0, 10) : '알 수 없음';
                     if (!confirm(
                         '⚠️ 복원하면 현재 모든 데이터가\n이 백업 파일 내용으로 덮어써집니다.\n\n' +
                         '백업 날짜: ' + dateStr + '\n' +
-                        '계좌 개수: ' + accCount + '개\n\n' +
+                        '월 개수: ' + monthCount + '개\n\n' +
                         '정말 복원하시겠습니까?'
                     )) { event.target.value = ''; return; }
 
                     var ops = [];
-                    // 계좌 목록 복원
-                    ops.push(db.collection(COLLECTION).doc('accounts').set({ list: backup.accounts || [] }));
-                    // 각 계좌 데이터 복원
-                    Object.keys(backup.data).forEach(function (acc) {
-                        var d = backup.data[acc];
+                    Object.keys(backup.data).forEach(function (month) {
+                        var d = backup.data[month];
                         var clean = {
-                            principal: d.principal || [], interest: d.interest || [],
-                            expense: d.expense || [], memo: d.memo || ''
+                            fixed: d.fixed || [], expense: d.expense || [],
+                            income: d.income || [], refund: d.refund || [], saving: d.saving || []
                         };
-                        ops.push(db.collection(COLLECTION).doc(docId(acc)).set(clean));
+                        ops.push(db.collection('household').doc(month).set(clean));
                     });
                     Promise.all(ops).then(function () {
                         alert('✅ 복원이 완료되었습니다.\n화면이 자동으로 새로고침됩니다.');
@@ -364,267 +504,175 @@
             reader.readAsText(file);
         }
 
-        // ===== UI 토글/입력 =====
-        function toggleSection(type) {
-            state.expandedSection = (state.expandedSection === type) ? null : type;
-            state.showAddForm = null;
-            state.editingItem = null;
-            if (type !== 'memo') state.isMemoEditing = false;
-            render();
-        }
-        function toggleAddForm(type) {
-            state.showAddForm = (state.showAddForm === type) ? null : type;
-            state.addForm = { date: getTodayStr(), amount: '', memo: '' };
-            render();
-        }
-        function onAddField(field, v) { state.addForm[field] = v; }
-        function onEditField(field, v) { state.editForm[field] = v; }
-        function onMemoInput(v) { state.memoText = v; }
-        function onNewAccountName(v) { state.newAccountName = v; }
-        function toggleSettings() { state.showSettings = !state.showSettings; render(); }
-        function openAddAccount() { state.showAddAccount = true; render(); }
-        function closeAddAccount() { state.showAddAccount = false; render(); }
+        // ===== 입력 핸들러 (인라인) =====
+        function onMonthManageToggle() { state.showMonthManage = !state.showMonthManage; render(); }
+        function onNewYear(v) { state.newMonthYear = v; }
+        function onNewMonth(v) { state.newMonthMonth = v; }
+        function onEditYear(v) { state.editMonthYear = v; }
+        function onEditMonth(v) { state.editMonthMonth = v; }
+        function onSectionToggle(type) { state.expanded[type] = !state.expanded[type]; render(); }
 
-        // ===== 렌더 =====
+        // ===== 렌더링 =====
         function render() {
             var root = document.getElementById('root');
             if (state.isLoading) {
-                root.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:linear-gradient(135deg,#1a1a2e,#16213e)">' +
-                    '<div style="text-align:center;color:white"><div style="font-size:48px;margin-bottom:16px">💰</div>' +
-                    '<div style="font-size:18px;font-weight:600">로딩중...</div></div></div>';
+                root.innerHTML = '<div class="loading-screen"><div style="text-align:center"><div class="emoji">💰</div><div class="txt">로딩 중...</div></div></div>';
                 return;
             }
 
             var cur = getCurrentData();
-            var principalTotal = (cur.principal || []).reduce(function (s, it) { return s + it.amount; }, 0);
-            var interestTotal = (cur.interest || []).reduce(function (s, it) { return s + it.amount; }, 0);
-            var expenseTotal = (cur.expense || []).reduce(function (s, it) { return s + it.amount; }, 0);
-            var balance = principalTotal + interestTotal - expenseTotal;
+            var fixedTotal = calcTotal(cur.fixed);
+            var expenseTotal = calcTotal(cur.expense);
+            var incomeTotal = calcTotal(cur.income);
+            var refundTotal = calcTotal(cur.refund);
+            var savingTotal = calcTotal(cur.saving);
+            var totalExpenseWithRefund = fixedTotal + expenseTotal - refundTotal;
+            var balance = incomeTotal + refundTotal - fixedTotal - expenseTotal - savingTotal;
 
             var html = '';
 
             // 헤더
-            html += '<div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:20px 16px 16px;position:sticky;top:0;z-index:100">';
-            html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
-            html += '<a href="index.html" style="color:rgba(255,255,255,0.8);font-size:22px;text-decoration:none">←</a>';
-            html += '<h1 style="color:white;font-size:18px;font-weight:700;letter-spacing:-0.5px">💰 다솔, 호철 부자되기 프로젝트</h1>';
-            html += '<button onclick="toggleSettings()" style="background:none;border:none;color:rgba(255,255,255,0.8);font-size:20px">⚙️</button>';
+            html += '<div class="header">';
+            html += '<div class="header-top">';
+            html += '<a href="index.html" class="back">←</a>';
+            html += '<h1>💰 부부 공유 가계부</h1>';
+            html += '<button class="icon-btn" onclick="onMonthManageToggle()">⚙️</button>';
             html += '</div>';
 
-            // 전체 합산 잔액
-            html += '<div style="text-align:center;padding:10px 0 14px;border-bottom:1px solid rgba(255,255,255,0.15);margin-bottom:12px">';
-            html += '<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.6);margin-bottom:4px;letter-spacing:1px">전체 합산 잔액</div>';
-            html += '<div style="font-size:24px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.2);letter-spacing:-0.5px">' + formatMoney(totalBalance()) + '</div>';
-            html += '</div>';
-
-            // 계좌 탭
-            html += '<div class="scrollbar-hide" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">';
-            state.accounts.forEach(function (acc) {
-                var active = state.activeAccount === acc;
-                html += '<button onclick="setActiveAccount(\'' + escapeHtml(acc).replace(/'/g, "\\'") + '\')" style="' +
-                    'padding:8px 16px;border-radius:20px;' +
-                    'border:' + (active ? '2px solid white' : '2px solid rgba(255,255,255,0.3)') + ';' +
-                    'background:' + (active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)') + ';' +
-                    'color:white;font-size:13px;font-weight:' + (active ? '700' : '500') + ';white-space:nowrap">' +
-                    escapeHtml(acc) + '</button>';
+            html += '<div class="month-tabs scrollbar-hide">';
+            state.months.forEach(function (month) {
+                html += '<button class="month-tab' + (state.activeMonth === month ? ' active' : '') + '" ' +
+                    'onclick="changeMonth(\'' + month + '\')">' + escapeHtml(month) + '</button>';
             });
-            html += '<button onclick="openAddAccount()" style="padding:8px 14px;border-radius:20px;border:2px dashed rgba(255,255,255,0.4);background:transparent;color:rgba(255,255,255,0.7);font-size:13px;white-space:nowrap">+ 추가</button>';
             html += '</div>';
+
+            if (state.showMonthManage) html += renderManagePanel();
             html += '</div>'; // header
 
-            // 설정 패널
-            if (state.showSettings) {
-                html += '<div style="background:rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.1);padding:16px">';
-                html += '<h3 style="color:white;font-size:15px;font-weight:700;margin-bottom:12px">계좌 관리</h3>';
-                state.accounts.forEach(function (acc) {
-                    var safe = escapeHtml(acc).replace(/'/g, "\\'");
-                    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(255,255,255,0.08);border-radius:10px;margin-bottom:8px">';
-                    html += '<span style="color:white;font-size:14px">' + escapeHtml(acc) + '</span>';
-                    html += '<div style="display:flex;gap:8px">';
-                    html += '<button onclick="renameAccount(\'' + safe + '\')" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:6px 12px;border-radius:8px;font-size:12px">이름변경</button>';
-                    html += '<button onclick="deleteAccount(\'' + safe + '\')" style="background:rgba(255,59,48,0.3);border:none;color:#ff6b6b;padding:6px 12px;border-radius:8px;font-size:12px">삭제</button>';
-                    html += '</div></div>';
-                });
-
-                // 데이터 백업 / 복원
-                html += '<div style="border-top:1px solid rgba(255,255,255,0.15);margin-top:12px;padding-top:14px">';
-                html += '<h3 style="color:white;font-size:14px;font-weight:700;margin-bottom:6px">💾 데이터 백업</h3>';
-                html += '<div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:10px;line-height:1.5">백업 버튼을 누르면 모든 계좌 내역이 파일로 저장됩니다. 가끔 눌러두면 안심이에요.</div>';
-                html += '<div style="display:flex;gap:8px">';
-                html += '<button onclick="backupData()" style="flex:1;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#11998e,#38ef7d);color:white;font-size:13px;font-weight:700">💾 백업하기</button>';
-                html += '<button onclick="triggerRestore()" style="flex:1;padding:10px;border-radius:10px;border:none;background:rgba(255,255,255,0.15);color:white;font-size:13px;font-weight:700">📂 복원하기</button>';
-                html += '</div></div>';
-
-                html += '</div>';
-            }
-
-            // 메인
-            html += '<div style="padding:16px">';
-
-            // 요약 카드 4개
-            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">';
-            html += summaryCard('통장잔액', balance, '#667eea', '#764ba2');
-            html += summaryCard('원금', principalTotal, '#11998e', '#38ef7d');
-            html += summaryCard('이자', interestTotal, '#f093fb', '#f5576c');
-            html += summaryCard('지출', expenseTotal, '#ff6b6b', '#ee5a24');
+            // 콘텐츠
+            html += '<div class="content">';
+            html += '<div class="summary-grid">';
+            html += '<div class="summary-card sc-green"><div class="label">통장잔액</div><div class="value">' + formatNumber(balance) + '원</div></div>';
+            html += '<div class="summary-card sc-red"><div class="label">지출합계</div><div class="value">' + formatNumber(totalExpenseWithRefund) + '원</div></div>';
+            html += '<div class="summary-card sc-blue"><div class="label">수입합계</div><div class="value">' + formatNumber(incomeTotal) + '원</div></div>';
             html += '</div>';
 
-            // 아코디언 3개
-            html += renderSection('principal', cur);
-            html += renderSection('interest', cur);
-            html += renderSection('expense', cur);
-
-            // 메모
-            html += renderMemo();
-
-            html += '</div>'; // 메인
-
-            // 하단 홈 버튼
-            html += '<div style="padding:20px 16px 40px;text-align:center">';
-            html += '<a href="index.html" style="display:inline-block;padding:14px 40px;background:rgba(255,255,255,0.1);border-radius:30px;color:rgba(255,255,255,0.6);text-decoration:none;font-size:14px;font-weight:600;border:1px solid rgba(255,255,255,0.15)">🏠 메인으로</a>';
+            FIELDS.forEach(function (type) { html += renderSection(type); });
             html += '</div>';
-
-            // 계좌 추가 모달
-            if (state.showAddAccount) {
-                html += '<div onclick="closeAddAccount()" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px">';
-                html += '<div onclick="event.stopPropagation()" style="background:white;border-radius:20px;padding:24px;width:100%;max-width:350px">';
-                html += '<h3 style="font-size:18px;font-weight:700;margin-bottom:16px;color:#1a1a2e">새 계좌 추가</h3>';
-                html += '<input id="newAccInput" type="text" placeholder="계좌 이름 (예: 적금, CMA...)" value="' + escapeHtml(state.newAccountName) + '" ' +
-                    'oninput="onNewAccountName(this.value)" onkeydown="if(event.key===\'Enter\')addAccount()" ' +
-                    'style="width:100%;padding:12px 16px;border-radius:12px;border:2px solid #e5e7eb;font-size:15px;outline:none;margin-bottom:16px">';
-                html += '<div style="display:flex;gap:10px">';
-                html += '<button onclick="closeAddAccount()" style="flex:1;padding:12px;border-radius:12px;border:none;background:#f3f4f6;color:#666;font-size:15px;font-weight:600">취소</button>';
-                html += '<button onclick="addAccount()" style="flex:1;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#667eea,#764ba2);color:white;font-size:15px;font-weight:600">추가</button>';
-                html += '</div></div></div>';
-            }
 
             root.innerHTML = html;
-
-            // 모달 자동 포커스
-            if (state.showAddAccount) {
-                var inp = document.getElementById('newAccInput');
-                if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
-            }
         }
 
-        function summaryCard(label, value, from, to) {
-            return '<div style="background:linear-gradient(135deg,' + from + ',' + to + ');border-radius:16px;padding:16px 12px;text-align:center">' +
-                '<div style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:600;margin-bottom:6px">' + label + '</div>' +
-                '<div style="color:white;font-size:17px;font-weight:800;word-break:break-all">' + formatMoney(value) + '</div></div>';
-        }
+        function renderManagePanel() {
+            var html = '<div class="manage-panel">';
+            html += '<h3>월 관리</h3>';
 
-        function renderSection(type, cur) {
-            var meta = SECTIONS[type];
-            var items = cur[type] || [];
-            var isExpanded = state.expandedSection === type;
-            var total = items.reduce(function (s, it) { return s + it.amount; }, 0);
+            // 새 월 추가
+            html += '<div><label class="manage-label">새 월 추가</label><div class="manage-row">';
+            html += '<input type="number" class="num-input" value="' + escapeHtml(state.newMonthYear) + '" ' +
+                'oninput="onNewYear(this.value)" onfocus="this.select()" placeholder="년">';
+            html += '<span style="font-weight:bold">년</span>';
+            html += '<input type="number" class="num-input" value="' + escapeHtml(state.newMonthMonth) + '" ' +
+                'oninput="onNewMonth(this.value)" onfocus="this.select()" min="1" max="12" placeholder="월">';
+            html += '<span style="font-weight:bold">월</span>';
+            html += '<button class="btn btn-green" style="flex:1" onclick="addMonth()">추가</button>';
+            html += '</div></div>';
 
-            var html = '<div style="margin-bottom:12px">';
-            html += '<button onclick="toggleSection(\'' + type + '\')" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:16px;' +
-                'background:linear-gradient(135deg,' + meta.from + ',' + meta.to + ');' +
-                'border-radius:' + (isExpanded ? '16px 16px 0 0' : '16px') + ';border:none">';
-            html += '<div style="display:flex;align-items:center;gap:10px">';
-            html += '<span style="font-size:20px">' + meta.emoji + '</span>';
-            html += '<span style="font-size:16px;font-weight:700;color:white">' + meta.title + '</span>';
-            html += '<span style="background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:10px;font-size:12px;color:white;font-weight:600">' + items.length + '건</span>';
-            html += '</div>';
-            html += '<div style="display:flex;align-items:center;gap:10px">';
-            html += '<span style="font-size:14px;font-weight:700;color:white">' + formatMoney(total) + '</span>';
-            html += '<span style="font-size:18px;color:white">' + (isExpanded ? '▲' : '▼') + '</span>';
-            html += '</div></button>';
-
-            if (isExpanded) {
-                html += '<div style="background:rgba(255,255,255,0.08);border-radius:0 0 16px 16px;padding:12px;border:1px solid rgba(255,255,255,0.1);border-top:none">';
-
-                var showForm = state.showAddForm === type;
-                html += '<button onclick="toggleAddForm(\'' + type + '\')" style="width:100%;padding:12px;' +
-                    'background:' + (showForm ? 'rgba(255,59,48,0.15)' : 'rgba(255,255,255,0.08)') + ';' +
-                    'border:2px dashed rgba(255,255,255,0.2);border-radius:12px;' +
-                    'color:' + (showForm ? '#ff6b6b' : 'rgba(255,255,255,0.6)') + ';' +
-                    'font-size:14px;font-weight:600;margin-bottom:12px">' +
-                    (showForm ? '✕ 취소' : '+ ' + meta.title + ' 추가') + '</button>';
-
-                if (showForm) {
-                    html += '<div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.1)">';
-                    html += addFieldRow('날짜', 'date', 'date', state.addForm.date);
-                    html += addFieldRow('금액 (원)', 'number', 'amount', state.addForm.amount, '금액 입력');
-                    html += addFieldRow('메모 (선택)', 'text', 'memo', state.addForm.memo, '메모 입력');
-                    html += '<button onclick="addItem(\'' + type + '\')" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,' + meta.from + ',' + meta.to + ');color:white;font-size:15px;font-weight:700">추가하기</button>';
+            // 월 이름 수정
+            html += '<div><label class="manage-label">월 이름 수정</label><div class="month-list">';
+            state.months.forEach(function (month) {
+                html += '<div class="month-list-item">';
+                if (state.editingMonth === month) {
+                    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+                    html += '<div style="display:flex;gap:8px;align-items:center">';
+                    html += '<input type="number" class="num-input" value="' + escapeHtml(state.editMonthYear) + '" oninput="onEditYear(this.value)" onfocus="this.select()" placeholder="년">';
+                    html += '<span style="font-weight:bold">년</span>';
+                    html += '<input type="number" class="num-input" value="' + escapeHtml(state.editMonthMonth) + '" oninput="onEditMonth(this.value)" onfocus="this.select()" min="1" max="12" placeholder="월">';
+                    html += '<span style="font-weight:bold">월</span>';
                     html += '</div>';
-                }
-
-                if (items.length === 0) {
-                    html += '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:14px">아직 항목이 없습니다</div>';
+                    html += '<div style="display:flex;gap:8px">';
+                    html += '<button class="btn btn-green btn-sm" style="flex:1" onclick="saveEditMonth()">저장</button>';
+                    html += '<button class="btn btn-gray btn-sm" style="flex:1" onclick="cancelEditMonth()">취소</button>';
+                    html += '</div></div>';
                 } else {
-                    items.forEach(function (item) {
-                        var isEditing = state.editingItem && state.editingItem.type === type && state.editingItem.id === item.id;
-                        if (isEditing) {
-                            html += '<div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:8px;border:1px solid ' + meta.color + '">';
-                            html += editFieldRow('date', 'date', state.editForm.date);
-                            html += editFieldRow('number', 'amount', state.editForm.amount);
-                            html += editFieldRow('text', 'memo', state.editForm.memo, '메모');
-                            html += '<div style="display:flex;gap:8px">';
-                            html += '<button onclick="cancelEdit()" style="flex:1;padding:8px;border-radius:8px;border:none;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);font-size:13px;font-weight:600">취소</button>';
-                            html += '<button onclick="saveEdit()" style="flex:1;padding:8px;border-radius:8px;border:none;background:linear-gradient(135deg,' + meta.from + ',' + meta.to + ');color:white;font-size:13px;font-weight:600">저장</button>';
-                            html += '</div></div>';
-                        } else {
-                            var safeId = String(item.id).replace(/'/g, "\\'");
-                            html += '<div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center">';
-                            html += '<div style="flex:1">';
-                            html += '<div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:4px">' + formatDate(item.date) + '</div>';
-                            html += '<div style="font-size:16px;font-weight:700;color:white;margin-bottom:' + (item.memo ? '4px' : '0') + '">' + formatMoney(item.amount) + '</div>';
-                            if (item.memo) html += '<div style="font-size:12px;color:rgba(255,255,255,0.5)">' + escapeHtml(item.memo) + '</div>';
-                            html += '</div>';
-                            html += '<div style="display:flex;gap:6px">';
-                            html += '<button onclick="startEdit(\'' + type + '\',{id:\'' + safeId + '\',date:\'' + escapeHtml(item.date) + '\',amount:' + item.amount + ',memo:\'' + escapeHtml(item.memo || '').replace(/'/g, "\\'") + '\'})" style="background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.6);padding:6px 10px;border-radius:8px;font-size:12px">✏️</button>';
-                            html += '<button onclick="deleteItem(\'' + type + '\',\'' + safeId + '\')" style="background:rgba(255,59,48,0.15);border:none;color:#ff6b6b;padding:6px 10px;border-radius:8px;font-size:12px">🗑️</button>';
-                            html += '</div></div>';
-                        }
-                    });
+                    html += '<div class="month-list-row"><span style="font-weight:500">' + escapeHtml(month) + '</span>';
+                    html += '<button class="btn btn-blue btn-sm" onclick="startEditMonth(\'' + month + '\')">✏️ 수정</button></div>';
                 }
                 html += '</div>';
-            }
+            });
+            html += '</div></div>';
+
+            // 월 삭제
+            html += '<div><label class="manage-label">월 삭제</label><div class="month-list">';
+            state.months.forEach(function (month) {
+                html += '<div class="month-list-item"><div class="month-list-row">';
+                html += '<span style="font-weight:500">' + escapeHtml(month) + '</span>';
+                html += '<button class="btn btn-red btn-sm" onclick="deleteMonth(\'' + month + '\')">삭제</button>';
+                html += '</div></div>';
+            });
+            html += '</div></div>';
+
+            // 데이터 백업 / 복원
+            html += '<div style="border-top:1px solid #e5e7eb;margin:4px 0 16px;padding-top:16px">';
+            html += '<label class="manage-label">💾 데이터 백업</label>';
+            html += '<div style="font-size:12px;color:#6b7280;margin-bottom:8px;line-height:1.5">백업 버튼을 누르면 모든 가계부 내역이 파일로 저장됩니다. 가끔 눌러두면 안심이에요.</div>';
+            html += '<div style="display:flex;gap:8px">';
+            html += '<button class="btn btn-green" style="flex:1" onclick="backupData()">💾 백업하기</button>';
+            html += '<button class="btn btn-gray" style="flex:1" onclick="triggerRestore()">📂 복원하기</button>';
+            html += '</div>';
+            html += '</div>';
+
+            html += '<button class="btn btn-gray" style="width:100%;margin-top:4px" onclick="onMonthManageToggle()">닫기</button>';
             html += '</div>';
             return html;
         }
 
-        function addFieldRow(label, inputType, field, value, placeholder) {
-            var ph = placeholder ? ' placeholder="' + placeholder + '"' : '';
-            return '<div style="margin-bottom:10px">' +
-                '<label style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:4px;display:block">' + label + '</label>' +
-                '<input type="' + inputType + '" value="' + escapeHtml(value) + '"' + ph +
-                ' oninput="onAddField(\'' + field + '\',this.value)" ' +
-                'style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:white;font-size:14px;outline:none"></div>';
-        }
-        function editFieldRow(inputType, field, value, placeholder) {
-            var ph = placeholder ? ' placeholder="' + placeholder + '"' : '';
-            return '<div style="margin-bottom:8px">' +
-                '<input type="' + inputType + '" value="' + escapeHtml(value) + '"' + ph +
-                ' oninput="onEditField(\'' + field + '\',this.value)" ' +
-                'style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:white;font-size:13px;outline:none"></div>';
-        }
+        function renderSection(type) {
+            var meta = SECTION_META[type];
+            var cur = getCurrentData();
+            var items = cur[type] || [];
+            var isExpanded = state.expanded[type];
 
-        function renderMemo() {
-            var isExpanded = state.expandedSection === 'memo';
-            var html = '<div style="margin-bottom:12px">';
-            html += '<button onclick="toggleSection(\'memo\')" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:16px;background:linear-gradient(135deg,#ffecd2,#fcb69f);border-radius:' + (isExpanded ? '16px 16px 0 0' : '16px') + ';border:none">';
-            html += '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📝</span><span style="font-size:16px;font-weight:700;color:#1a1a2e">메모</span></div>';
-            html += '<span style="font-size:18px;color:#1a1a2e">' + (isExpanded ? '▲' : '▼') + '</span></button>';
+            var html = '<div class="section">';
+            html += '<button class="section-header ' + meta.sh + '" onclick="onSectionToggle(\'' + type + '\')">';
+            html += '<span class="title">' + meta.emoji + ' ' + meta.label + '</span>';
+            html += '<span>' + (isExpanded ? '▲' : '▼') + '</span>';
+            html += '</button>';
 
             if (isExpanded) {
-                html += '<div style="background:rgba(255,255,255,0.08);border-radius:0 0 16px 16px;padding:16px;border:1px solid rgba(255,255,255,0.1);border-top:none">';
-                if (state.isMemoEditing) {
-                    html += '<textarea id="memoArea" oninput="onMemoInput(this.value)" placeholder="자유롭게 메모를 작성하세요..." ' +
-                        'style="width:100%;min-height:150px;padding:14px;border-radius:12px;border:2px solid #fcb69f;background:rgba(255,255,255,0.1);color:white;font-size:14px;line-height:1.6;resize:vertical;outline:none;font-family:inherit">' + escapeHtml(state.memoText) + '</textarea>';
-                    html += '<div style="display:flex;gap:10px;margin-top:12px">';
-                    html += '<button onclick="cancelMemoEdit()" style="flex:1;padding:12px;border-radius:12px;border:none;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);font-size:14px;font-weight:600">취소</button>';
-                    html += '<button onclick="saveMemo()" style="flex:1;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#ffecd2,#fcb69f);color:#1a1a2e;font-size:14px;font-weight:700">💾 저장</button>';
-                    html += '</div>';
+                html += '<div class="section-body"><div class="item-list">';
+                if (items.length === 0) {
+                    html += '<div class="empty">' + meta.label + ' 내역이 없습니다</div>';
                 } else {
-                    html += '<div style="width:100%;min-height:80px;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:white;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word">' +
-                        (state.memoText ? escapeHtml(state.memoText) : '<span style="color:rgba(255,255,255,0.3)">메모가 없습니다</span>') + '</div>';
-                    html += '<div style="margin-top:12px;text-align:right"><button onclick="startMemoEdit()" style="padding:10px 24px;border-radius:12px;border:none;background:linear-gradient(135deg,#ffecd2,#fcb69f);color:#1a1a2e;font-size:14px;font-weight:700">✏️ 수정</button></div>';
+                    sortByDate(items, type).forEach(function (item) {
+                        var isEditing = state.editingItems[type + '-' + item.id];
+                        html += '<div class="item ' + meta.ib + '">';
+                        html += '<div class="item-top">';
+                        html += '<input type="date" class="item-date" value="' + escapeHtml(item.date) + '" ' +
+                            'oninput="updateItem(\'' + type + '\',' + item.id + ',\'date\',this.value)" ' +
+                            (isEditing ? '' : 'disabled') + '>';
+                        html += '<button class="del-btn" onclick="deleteItem(\'' + type + '\',' + item.id + ')">🗑️</button>';
+                        html += '</div>';
+                        html += '<input type="text" class="item-content" value="' + escapeHtml(item.content) + '" ' +
+                            'placeholder="내용을 입력하세요" ' +
+                            'oninput="updateItem(\'' + type + '\',' + item.id + ',\'content\',this.value)" ' +
+                            (isEditing ? '' : 'disabled') + '>';
+                        html += '<div class="item-amount-row">';
+                        if (isEditing) {
+                            html += '<input type="number" class="item-amount-input" value="' + escapeHtml(item.amount) + '" ' +
+                                'placeholder="금액" ' +
+                                'oninput="updateItem(\'' + type + '\',' + item.id + ',\'amount\',this.value)">';
+                        } else {
+                            html += '<div class="item-amount-view">' + formatNumber(item.amount) + '원</div>';
+                        }
+                        html += '<button class="edit-btn ' + (isEditing ? 'editing' : 'normal') + '" ' +
+                            'onclick="' + (isEditing ? 'completeEdit' : 'toggleEdit') + '(\'' + type + '\',' + item.id + ')">' +
+                            (isEditing ? '완료' : '수정') + '</button>';
+                        html += '</div></div>';
+                    });
                 }
+                html += '</div>';
+                html += '<button class="add-btn ' + meta.sh + '" onclick="addItem(\'' + type + '\')">＋ ' + meta.label + ' 추가</button>';
                 html += '</div>';
             }
             html += '</div>';
