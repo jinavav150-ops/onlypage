@@ -119,7 +119,7 @@
             }
             state.isLoading = false;
             subscribeAccounts();
-            render();
+            safeRender();
         }, function (err) {
             console.error('계좌 구독 오류:', err);
             document.getElementById('root').innerHTML =
@@ -145,7 +145,7 @@
                     if (accName === state.activeAccount && !state.isMemoEditing) {
                         state.memoText = state.accountData[accName].memo || '';
                     }
-                    render();
+                    safeRender();
                 });
             });
         }
@@ -386,6 +386,28 @@
         function closeAddAccount() { state.showAddAccount = false; render(); }
 
         // ===== 렌더 =====
+        // 입력칸에 포커스가 있으면(타이핑 중이면) 화면을 다시 그리지 않고 미룬다.
+        // → 한 글자 칠 때마다 키보드가 사라지는 문제 방지
+        var pendingRender = false;
+        function safeRender() {
+            var el = document.activeElement;
+            if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+                pendingRender = true;
+                return;
+            }
+            render();
+        }
+        document.addEventListener('focusout', function () {
+            setTimeout(function () {
+                var el = document.activeElement;
+                var stillEditing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+                if (pendingRender && !stillEditing) {
+                    pendingRender = false;
+                    render();
+                }
+            }, 100);
+        });
+
         function render() {
             var root = document.getElementById('root');
             if (state.isLoading) {
