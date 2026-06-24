@@ -250,7 +250,7 @@
             }
 
             state.isLoading = false;
-            render();
+            safeRender();
         }, function (err) {
             console.error('구독 오류:', err);
             document.getElementById('root').innerHTML =
@@ -513,6 +513,29 @@
         function onSectionToggle(type) { state.expanded[type] = !state.expanded[type]; render(); }
 
         // ===== 렌더링 =====
+        // 입력칸에 포커스가 있으면(타이핑 중이면) 화면을 다시 그리지 않고 잠시 미룬다.
+        // → 한 글자 칠 때마다 키보드가 사라지는 문제 방지
+        var pendingRender = false;
+        function safeRender() {
+            var el = document.activeElement;
+            if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+                pendingRender = true;
+                return;
+            }
+            render();
+        }
+        // 입력칸에서 포커스가 빠지면(키보드 내려가면) 미뤄둔 렌더링을 실행
+        document.addEventListener('focusout', function () {
+            setTimeout(function () {
+                var el = document.activeElement;
+                var stillEditing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+                if (pendingRender && !stillEditing) {
+                    pendingRender = false;
+                    render();
+                }
+            }, 100);
+        });
+
         function render() {
             var root = document.getElementById('root');
             if (state.isLoading) {
