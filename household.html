@@ -6,6 +6,7 @@
     <title>💰 부부 공유 가계부</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
@@ -45,11 +46,13 @@
         .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
         .header-top a.back { color: rgba(255,255,255,0.85); font-size: 22px; text-decoration: none; }
         .header-top h1 { font-size: 20px; font-weight: bold; }
+        .header-btns { display: flex; gap: 8px; }
         .icon-btn {
             padding: 8px; background: rgba(255,255,255,0.2); border-radius: 8px;
             color: white; display: flex; align-items: center; justify-content: center;
         }
         .icon-btn:hover { background: rgba(255,255,255,0.3); }
+        .icon-btn.active { background: white; color: #9333ea; }
         .month-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
         .month-tab {
             flex-shrink: 0; padding: 8px 16px; border-radius: 8px;
@@ -95,6 +98,8 @@
         .sh-yellow { background: #ca8a04; } .sh-yellow:hover { background: #a16207; }
         .sh-teal { background: #0d9488; } .sh-teal:hover { background: #0f766e; }
         .section-body { padding: 12px; }
+        .chart-box { position: relative; width: 100%; }
+        .stat-msg { padding: 8px 4px 0; font-size: 14px; color: #374151; font-weight: bold; text-align: center; line-height: 1.5; }
         .item-list { display: flex; flex-direction: column; gap: 8px; }
         .empty { text-align: center; padding: 32px 0; color: #9ca3af; font-size: 14px; }
         .item {
@@ -155,6 +160,7 @@
             expanded: { fixed: false, expense: false, income: false, refund: false, saving: false },
             editingItems: {},     // key: "type-id" -> true
             showMonthManage: false,
+            showStats: false,     // 통계 화면 표시 여부
             newMonthYear: '25',
             newMonthMonth: '01',
             editingMonth: null,
@@ -163,6 +169,7 @@
             isLoading: true
         };
         var saveTimeouts = {};    // race condition 방지용 pending 저장 타이머
+        var statCharts = [];      // 통계 그래프 인스턴스 (재렌더 시 정리용)
         function hasPendingSave(month, field) {
             return !!saveTimeouts[month + '-' + field];
         }
@@ -464,12 +471,143 @@
             reader.readAsText(file);
         }
         // ===== 입력 핸들러 (인라인) =====
-        function onMonthManageToggle() { state.showMonthManage = !state.showMonthManage; render(); }
+        function onMonthManageToggle() { state.showMonthManage = !state.showMonthManage; if (state.showMonthManage) state.showStats = false; render(); }
+        function onStatsToggle() { state.showStats = !state.showStats; if (state.showStats) state.showMonthManage = false; render(); }
         function onNewYear(v) { state.newMonthYear = v; }
         function onNewMonth(v) { state.newMonthMonth = v; }
         function onEditYear(v) { state.editMonthYear = v; }
         function onEditMonth(v) { state.editMonthMonth = v; }
         function onSectionToggle(type) { state.expanded[type] = !state.expanded[type]; render(); }
+        // ===== 통계 =====
+        // 한 달치 합계 계산 (앱 상단 요약과 동일한 방식)
+        function getMonthStats(m) {
+            var d = state.localData[m] || {};
+            var fixed = calcTotal(d.fixed), expense = calcTotal(d.expense),
+                income = calcTotal(d.income), refund = calcTotal(d.refund), saving = calcTotal(d.saving);
+            return {
+                fixed: fixed, expense: expense, income: income, refund: refund, saving: saving,
+                spend: fixed + expense - refund,                          // 지출합계
+                balance: income + refund - fixed - expense - saving       // 통장잔액
+            };
+        }
+        function destroyStatCharts() {
+            statCharts.forEach(function (c) { try { c.destroy(); } catch (e) {} });
+            statCharts = [];
+        }
+        function renderStatsContent() {
+            var cur = getMonthStats(state.activeMonth);
+            var chron = state.months.slice().reverse();   // 오래된 달 -> 최신 달
+            var idx = chron.indexOf(state.activeMonth);
+            var prev = idx > 0 ? getMonthStats(chron[idx - 1]) : null;
+            var html = '';
+            // 이번 달 요약 + 지난달 대비
+            html += '<div class="section"><div class="section-header sh-purple" style="cursor:default">';
+            html += '<span class="title">📊 ' + escapeHtml(state.activeMonth) + ' 요약</span></div>';
+            html += '<div class="section-body">';
+            html += '<div class="summary-grid" style="margin-bottom:0">';
+            html += '<div class="summary-card sc-blue"><div class="label">수입</div><div class="value">' + formatNumber(cur.income) + '원</div></div>';
+            html += '<div class="summary-card sc-red"><div class="label">지출</div><div class="value">' + formatNumber(cur.spend) + '원</div></div>';
+            html += '<div class="summary-card sc-green"><div class="label">잔액</div><div class="value">' + formatNumber(cur.balance) + '원</div></div>';
+            html += '</div>';
+            if (prev) {
+                var diff = cur.spend - prev.spend;
+                var msg;
+                if (diff > 0) msg = '지난달보다 <span style="color:#dc2626">' + formatNumber(diff) + '원 더</span> 썼어요.';
+                else if (diff < 0) msg = '지난달보다 <span style="color:#15803d">' + formatNumber(-diff) + '원 덜</span> 썼어요. 👍';
+                else msg = '지난달과 지출이 같아요.';
+                html += '<div class="stat-msg">' + msg + '</div>';
+            } else {
+                html += '<div class="stat-msg" style="color:#9ca3af;font-weight:normal">비교할 지난달 데이터가 없어요.</div>';
+            }
+            html += '</div></div>';
+            // 이번 달 지출 구성 (도넛)
+            html += '<div class="section"><div class="section-header sh-red" style="cursor:default">';
+            html += '<span class="title">💸 이번 달 지출 구성</span></div>';
+            html += '<div class="section-body"><div class="chart-box" style="height:240px"><canvas id="chart-doughnut"></canvas></div></div></div>';
+            // 월별 수입·지출 (막대)
+            html += '<div class="section"><div class="section-header sh-blue" style="cursor:default">';
+            html += '<span class="title">📈 월별 수입·지출</span></div>';
+            html += '<div class="section-body"><div class="chart-box" style="height:260px"><canvas id="chart-incexp"></canvas></div></div></div>';
+            // 월별 통장잔액 추이 (선)
+            html += '<div class="section"><div class="section-header sh-teal" style="cursor:default">';
+            html += '<span class="title">💰 월별 통장잔액 추이</span></div>';
+            html += '<div class="section-body"><div class="chart-box" style="height:260px"><canvas id="chart-balance"></canvas></div></div></div>';
+            return html;
+        }
+        function drawStatsCharts() {
+            if (typeof Chart === 'undefined') return;
+            destroyStatCharts();
+            var chron = state.months.slice().reverse();
+            var labels = chron.map(function (m) { return m.replace('년', '.').replace('월', ''); });
+            var incomeArr = chron.map(function (m) { return getMonthStats(m).income; });
+            var spendArr = chron.map(function (m) { return getMonthStats(m).spend; });
+            var balanceArr = chron.map(function (m) { return getMonthStats(m).balance; });
+            var moneyTick = { callback: function (v) { return formatNumber(v); } };
+            // 도넛: 이번 달 지출 구성
+            var cur = getMonthStats(state.activeMonth);
+            var dctx = document.getElementById('chart-doughnut');
+            if (dctx) {
+                if (cur.fixed + cur.expense + cur.saving === 0) {
+                    dctx.parentNode.innerHTML = '<div class="empty">이번 달 지출 내역이 없어요</div>';
+                } else {
+                    statCharts.push(new Chart(dctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['고정지출', '지출', '저금'],
+                            datasets: [{ data: [cur.fixed, cur.expense, cur.saving], backgroundColor: ['#9333ea', '#dc2626', '#0d9488'], borderWidth: 2, borderColor: '#fff' }]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'bottom' },
+                                tooltip: { callbacks: { label: function (c) { return c.label + ': ' + formatNumber(c.parsed) + '원'; } } }
+                            }
+                        }
+                    }));
+                }
+            }
+            // 막대: 월별 수입 vs 지출
+            var ictx = document.getElementById('chart-incexp');
+            if (ictx) {
+                statCharts.push(new Chart(ictx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: '수입', data: incomeArr, backgroundColor: '#2563eb' },
+                            { label: '지출', data: spendArr, backgroundColor: '#dc2626' }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + formatNumber(c.parsed.y) + '원'; } } }
+                        },
+                        scales: { y: { ticks: moneyTick } }
+                    }
+                }));
+            }
+            // 선: 월별 통장잔액
+            var bctx = document.getElementById('chart-balance');
+            if (bctx) {
+                statCharts.push(new Chart(bctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: '통장잔액', data: balanceArr, borderColor: '#15803d', backgroundColor: 'rgba(21,128,61,0.12)', fill: true, tension: 0.3, pointRadius: 3 }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: { callbacks: { label: function (c) { return '통장잔액: ' + formatNumber(c.parsed.y) + '원'; } } }
+                        },
+                        scales: { y: { ticks: moneyTick } }
+                    }
+                }));
+            }
+        }
         // ===== 렌더링 =====
         // 입력칸에 포커스가 있으면(타이핑 중이면) 화면을 다시 그리지 않고 잠시 미룬다.
         // → 한 글자 칠 때마다 키보드가 사라지는 문제 방지
@@ -494,26 +632,22 @@
             }, 100);
         });
         function render() {
+            if (!state.showStats) destroyStatCharts();
             var root = document.getElementById('root');
             if (state.isLoading) {
                 root.innerHTML = '<div class="loading-screen"><div style="text-align:center"><div class="emoji">💰</div><div class="txt">로딩 중...</div></div></div>';
                 return;
             }
-            var cur = getCurrentData();
-            var fixedTotal = calcTotal(cur.fixed);
-            var expenseTotal = calcTotal(cur.expense);
-            var incomeTotal = calcTotal(cur.income);
-            var refundTotal = calcTotal(cur.refund);
-            var savingTotal = calcTotal(cur.saving);
-            var totalExpenseWithRefund = fixedTotal + expenseTotal - refundTotal;
-            var balance = incomeTotal + refundTotal - fixedTotal - expenseTotal - savingTotal;
             var html = '';
             // 헤더
             html += '<div class="header">';
             html += '<div class="header-top">';
             html += '<a href="index.html" class="back">←</a>';
             html += '<h1>💰 부부 공유 가계부</h1>';
-            html += '<button class="icon-btn" onclick="onMonthManageToggle()">⚙️</button>';
+            html += '<div class="header-btns">';
+            html += '<button class="icon-btn' + (state.showStats ? ' active' : '') + '" onclick="onStatsToggle()">📊</button>';
+            html += '<button class="icon-btn' + (state.showMonthManage ? ' active' : '') + '" onclick="onMonthManageToggle()">⚙️</button>';
+            html += '</div>';
             html += '</div>';
             html += '<div class="month-tabs scrollbar-hide">';
             state.months.forEach(function (month) {
@@ -525,14 +659,27 @@
             html += '</div>'; // header
             // 콘텐츠
             html += '<div class="content">';
-            html += '<div class="summary-grid">';
-            html += '<div class="summary-card sc-green"><div class="label">통장잔액</div><div class="value">' + formatNumber(balance) + '원</div></div>';
-            html += '<div class="summary-card sc-red"><div class="label">지출합계</div><div class="value">' + formatNumber(totalExpenseWithRefund) + '원</div></div>';
-            html += '<div class="summary-card sc-blue"><div class="label">수입합계</div><div class="value">' + formatNumber(incomeTotal) + '원</div></div>';
-            html += '</div>';
-            FIELDS.forEach(function (type) { html += renderSection(type); });
+            if (state.showStats) {
+                html += renderStatsContent();
+            } else {
+                var cur = getCurrentData();
+                var fixedTotal = calcTotal(cur.fixed);
+                var expenseTotal = calcTotal(cur.expense);
+                var incomeTotal = calcTotal(cur.income);
+                var refundTotal = calcTotal(cur.refund);
+                var savingTotal = calcTotal(cur.saving);
+                var totalExpenseWithRefund = fixedTotal + expenseTotal - refundTotal;
+                var balance = incomeTotal + refundTotal - fixedTotal - expenseTotal - savingTotal;
+                html += '<div class="summary-grid">';
+                html += '<div class="summary-card sc-green"><div class="label">통장잔액</div><div class="value">' + formatNumber(balance) + '원</div></div>';
+                html += '<div class="summary-card sc-red"><div class="label">지출합계</div><div class="value">' + formatNumber(totalExpenseWithRefund) + '원</div></div>';
+                html += '<div class="summary-card sc-blue"><div class="label">수입합계</div><div class="value">' + formatNumber(incomeTotal) + '원</div></div>';
+                html += '</div>';
+                FIELDS.forEach(function (type) { html += renderSection(type); });
+            }
             html += '</div>';
             root.innerHTML = html;
+            if (state.showStats) drawStatsCharts();
         }
         function renderManagePanel() {
             var html = '<div class="manage-panel">';
