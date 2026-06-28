@@ -30,14 +30,12 @@
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         button { font-family: inherit; cursor: pointer; border: none; }
         input { font-family: inherit; }
-
         .loading-screen {
             display: flex; align-items: center; justify-content: center;
             height: 100vh; background: #f9fafb;
         }
         .loading-screen .emoji { font-size: 40px; margin-bottom: 16px; }
         .loading-screen .txt { font-size: 20px; font-weight: bold; color: #374151; text-align: center; }
-
         .header {
             position: sticky; top: 0; z-index: 20;
             background: linear-gradient(to right, #9333ea, #2563eb);
@@ -52,7 +50,6 @@
             color: white; display: flex; align-items: center; justify-content: center;
         }
         .icon-btn:hover { background: rgba(255,255,255,0.3); }
-
         .month-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
         .month-tab {
             flex-shrink: 0; padding: 8px 16px; border-radius: 8px;
@@ -61,7 +58,6 @@
         }
         .month-tab:hover { background: #6b21a8; }
         .month-tab.active { background: white; color: #9333ea; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transform: scale(1.05); }
-
         .manage-panel { margin-top: 12px; padding: 16px; background: white; border-radius: 8px; color: black; }
         .manage-panel h3 { font-weight: bold; margin-bottom: 12px; font-size: 18px; }
         .manage-label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 8px; }
@@ -70,14 +66,12 @@
         .month-list { display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; margin-bottom: 16px; }
         .month-list-item { padding: 8px; background: #f9fafb; border-radius: 6px; }
         .month-list-row { display: flex; align-items: center; justify-content: space-between; }
-
         .btn { padding: 8px 16px; border-radius: 8px; font-weight: bold; color: white; font-size: 14px; }
         .btn-green { background: #22c55e; } .btn-green:hover { background: #16a34a; }
         .btn-gray { background: #6b7280; } .btn-gray:hover { background: #4b5563; }
         .btn-blue { background: #3b82f6; } .btn-blue:hover { background: #2563eb; }
         .btn-red { background: #ef4444; } .btn-red:hover { background: #dc2626; }
         .btn-sm { padding: 4px 12px; font-size: 14px; }
-
         .content { padding: 12px; }
         .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
         .summary-card { border-radius: 12px; padding: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid; }
@@ -89,7 +83,6 @@
         .sc-red .label { color: #991b1b; } .sc-red .value { color: #b91c1c; }
         .sc-blue { background: #dbeafe; border-color: #bfdbfe; }
         .sc-blue .label { color: #1e40af; } .sc-blue .value { color: #1d4ed8; }
-
         .section { background: white; box-shadow: 0 10px 15px rgba(0,0,0,0.1); border-radius: 16px; margin-bottom: 12px; overflow: hidden; }
         .section-header {
             width: 100%; padding: 12px 16px; display: flex; align-items: center;
@@ -101,7 +94,6 @@
         .sh-blue { background: #2563eb; } .sh-blue:hover { background: #1d4ed8; }
         .sh-yellow { background: #ca8a04; } .sh-yellow:hover { background: #a16207; }
         .sh-teal { background: #0d9488; } .sh-teal:hover { background: #0f766e; }
-
         .section-body { padding: 12px; }
         .item-list { display: flex; flex-direction: column; gap: 8px; }
         .empty { text-align: center; padding: 32px 0; color: #9ca3af; font-size: 14px; }
@@ -113,7 +105,6 @@
         .ib-blue { background: #eff6ff; border-color: #bfdbfe; }
         .ib-yellow { background: #fefce8; border-color: #fef08a; }
         .ib-teal { background: #f0fdfa; border-color: #99f6e4; }
-
         .item-top { display: flex; gap: 4px; align-items: flex-start; margin-bottom: 8px; }
         .item-date { width: 130px; padding: 8px 4px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; flex-shrink: 0; }
         .item-date:disabled { background: #f3f4f6; color: #6b7280; }
@@ -136,7 +127,6 @@
 <body>
     <div id="root"><div class="loading-screen"><div style="text-align:center"><div class="emoji">💰</div><div class="txt">로딩 중...</div></div></div></div>
     <input type="file" id="restoreFileInput" accept=".json,application/json" style="display:none" onchange="restoreData(event)">
-
     <script>
         var firebaseConfig = {
             apiKey: "AIzaSyDOdbB-ImQ6GuqCX1r4bS_miB5IVjD989Y",
@@ -148,7 +138,6 @@
         };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         var db = firebase.firestore();
-
         var FIELDS = ['fixed', 'expense', 'income', 'refund', 'saving'];
         var SECTION_META = {
             fixed:   { label: '고정지출', emoji: '🏠', sh: 'sh-purple', ib: 'ib-purple' },
@@ -157,7 +146,6 @@
             refund:  { label: '환불',     emoji: '💳', sh: 'sh-yellow', ib: 'ib-yellow' },
             saving:  { label: '저금',     emoji: '🐷', sh: 'sh-teal',   ib: 'ib-teal' }
         };
-
         // ===== 상태 =====
         var state = {
             activeMonth: '',
@@ -175,11 +163,9 @@
             isLoading: true
         };
         var saveTimeouts = {};    // race condition 방지용 pending 저장 타이머
-
         function hasPendingSave(month, field) {
             return !!saveTimeouts[month + '-' + field];
         }
-
         function formatNumber(num) {
             if (!num) return '0';
             return parseInt(num).toLocaleString('ko-KR');
@@ -192,7 +178,6 @@
                 return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
             });
         }
-
         // ===== Firebase 구독 =====
         db.collection('household').onSnapshot(function (snapshot) {
             var data = {};
@@ -204,7 +189,6 @@
                 d.saving = d.saving || [];
                 data[doc.id] = d;
             });
-
             if (monthsList.length === 0) {
                 var initialMonths = ['25년11월', '25년12월', '26년01월'];
                 var initialData = { fixed: [], expense: [], income: [], refund: [], saving: [] };
@@ -213,16 +197,13 @@
                 });
                 return;
             }
-
             monthsList.sort(function (a, b) {
                 var pa = a.replace('년', '-').replace('월', '').split('-');
                 var pb = b.replace('년', '-').replace('월', '').split('-');
                 return parseInt(pb[0] + pb[1]) - parseInt(pa[0] + pa[1]);
             });
-
             state.months = monthsList;
             state.firebaseData = data;
-
             // ★ smart merge: pending 저장이 있는 필드는 Firebase 데이터로 덮어쓰지 않음
             var prev = state.localData;
             var merged = {};
@@ -241,14 +222,12 @@
                 }
             });
             state.localData = merged;
-
             if (!state.activeMonth) {
                 var saved = localStorage.getItem('lastActiveMonth');
                 state.activeMonth = (saved && monthsList.indexOf(saved) !== -1) ? saved : monthsList[0];
             } else if (monthsList.indexOf(state.activeMonth) === -1) {
                 state.activeMonth = monthsList[0];
             }
-
             state.isLoading = false;
             safeRender();
         }, function (err) {
@@ -257,7 +236,6 @@
                 '<div class="loading-screen"><div style="text-align:center"><div class="emoji">⚠️</div>' +
                 '<div class="txt">데이터를 불러올 수 없습니다.<br>인터넷 연결을 확인해주세요.</div></div></div>';
         });
-
         window.addEventListener('beforeunload', function () {
             Object.keys(saveTimeouts).forEach(function (key) {
                 if (saveTimeouts[key]) { clearTimeout(saveTimeouts[key]); saveTimeouts[key] = null; }
@@ -267,14 +245,12 @@
                 db.collection('household').doc(month).update(state.localData[month]);
             }
         });
-
         function getCurrentData() {
             return state.localData[state.activeMonth] || { fixed: [], expense: [], income: [], refund: [], saving: [] };
         }
-
+        // 항상 날짜순으로 정렬한다.
+        // (날짜가 없는 항목 - 새로 추가한 빈 항목 - 은 맨 아래로 보낸다.)
         function sortByDate(items, type) {
-            var hasEditing = items.some(function (it) { return state.editingItems[type + '-' + it.id]; });
-            if (hasEditing) return items;
             return items.slice().sort(function (a, b) {
                 if (!a.date && !b.date) return 0;
                 if (!a.date) return 1;
@@ -282,7 +258,6 @@
                 return new Date(a.date) - new Date(b.date);
             });
         }
-
         // ===== 저장 (디바운스 + pending 보호) =====
         function saveToFirebase(field, updatedData) {
             var key = state.activeMonth + '-' + field;
@@ -295,7 +270,6 @@
                     .catch(function (err) { console.error('저장 실패:', err); saveTimeouts[key] = null; });
             }, 500);
         }
-
         // ===== 항목 CRUD =====
         function addItem(type) {
             var cur = getCurrentData();
@@ -308,7 +282,6 @@
             state.editingItems[type + '-' + newItem.id] = true;
             render();
         }
-
         function updateItem(type, id, field, value) {
             var cur = getCurrentData();
             var updated = (cur[type] || []).map(function (it) {
@@ -320,7 +293,6 @@
             saveToFirebase(type, updated);
             // 입력 중에는 전체 재렌더링하지 않음 (포커스 유지). 값만 메모리에 반영.
         }
-
         function deleteItem(type, id) {
             if (!confirm('삭제하시겠습니까?')) return;
             var cur = getCurrentData();
@@ -331,13 +303,11 @@
             db.collection('household').doc(state.activeMonth).update(update);
             render();
         }
-
         function toggleEdit(type, id) {
             var key = type + '-' + id;
             state.editingItems[key] = !state.editingItems[key];
             render();
         }
-
         function completeEdit(type, id) {
             var key = type + '-' + id;
             var timeoutKey = state.activeMonth + '-' + type;
@@ -349,7 +319,6 @@
             state.editingItems[key] = false;
             render();
         }
-
         // ===== 월 관리 =====
         function changeMonth(newMonth) {
             if (state.localData[state.activeMonth]) {
@@ -363,7 +332,6 @@
             localStorage.setItem('lastActiveMonth', newMonth);
             render();
         }
-
         function addMonth() {
             var mm = String(state.newMonthMonth).padStart(2, '0');
             var newMonth = state.newMonthYear + '년' + mm + '월';
@@ -373,7 +341,6 @@
                 state.newMonthMonth = '01';
             }
         }
-
         function startEditMonth(month) {
             var parts = month.replace('년', '-').replace('월', '').split('-');
             state.editingMonth = month;
@@ -381,7 +348,6 @@
             state.editMonthMonth = parts[1];
             render();
         }
-
         function saveEditMonth() {
             if (!state.editingMonth) return;
             var mm = String(state.editMonthMonth).padStart(2, '0');
@@ -404,14 +370,12 @@
                 alert('월 이름 수정에 실패했습니다.');
             });
         }
-
         function cancelEditMonth() {
             state.editingMonth = null;
             state.editMonthYear = '';
             state.editMonthMonth = '';
             render();
         }
-
         function deleteMonth(month) {
             if (state.months.length <= 1) { alert('마지막 월은 삭제할 수 없습니다.'); return; }
             if (confirm(month + '을 삭제하시겠습니까?')) {
@@ -424,7 +388,6 @@
                 }
             }
         }
-
         // ===== 백업 / 복원 =====
         function backupData() {
             // Firebase 원본(firebaseData)에 현재 로컬 변경분을 합쳐 전체 내보내기
@@ -454,11 +417,9 @@
             URL.revokeObjectURL(url);
             alert('백업 파일이 저장되었습니다.\n\n📁 ' + a.download + '\n\n폰의 다운로드 폴더를 확인하세요.');
         }
-
         function triggerRestore() {
             document.getElementById('restoreFileInput').click();
         }
-
         function restoreData(event) {
             var file = event.target.files[0];
             if (!file) return;
@@ -478,7 +439,6 @@
                         '월 개수: ' + monthCount + '개\n\n' +
                         '정말 복원하시겠습니까?'
                     )) { event.target.value = ''; return; }
-
                     var ops = [];
                     Object.keys(backup.data).forEach(function (month) {
                         var d = backup.data[month];
@@ -503,7 +463,6 @@
             };
             reader.readAsText(file);
         }
-
         // ===== 입력 핸들러 (인라인) =====
         function onMonthManageToggle() { state.showMonthManage = !state.showMonthManage; render(); }
         function onNewYear(v) { state.newMonthYear = v; }
@@ -511,7 +470,6 @@
         function onEditYear(v) { state.editMonthYear = v; }
         function onEditMonth(v) { state.editMonthMonth = v; }
         function onSectionToggle(type) { state.expanded[type] = !state.expanded[type]; render(); }
-
         // ===== 렌더링 =====
         // 입력칸에 포커스가 있으면(타이핑 중이면) 화면을 다시 그리지 않고 잠시 미룬다.
         // → 한 글자 칠 때마다 키보드가 사라지는 문제 방지
@@ -535,14 +493,12 @@
                 }
             }, 100);
         });
-
         function render() {
             var root = document.getElementById('root');
             if (state.isLoading) {
                 root.innerHTML = '<div class="loading-screen"><div style="text-align:center"><div class="emoji">💰</div><div class="txt">로딩 중...</div></div></div>';
                 return;
             }
-
             var cur = getCurrentData();
             var fixedTotal = calcTotal(cur.fixed);
             var expenseTotal = calcTotal(cur.expense);
@@ -551,9 +507,7 @@
             var savingTotal = calcTotal(cur.saving);
             var totalExpenseWithRefund = fixedTotal + expenseTotal - refundTotal;
             var balance = incomeTotal + refundTotal - fixedTotal - expenseTotal - savingTotal;
-
             var html = '';
-
             // 헤더
             html += '<div class="header">';
             html += '<div class="header-top">';
@@ -561,17 +515,14 @@
             html += '<h1>💰 부부 공유 가계부</h1>';
             html += '<button class="icon-btn" onclick="onMonthManageToggle()">⚙️</button>';
             html += '</div>';
-
             html += '<div class="month-tabs scrollbar-hide">';
             state.months.forEach(function (month) {
                 html += '<button class="month-tab' + (state.activeMonth === month ? ' active' : '') + '" ' +
                     'onclick="changeMonth(\'' + month + '\')">' + escapeHtml(month) + '</button>';
             });
             html += '</div>';
-
             if (state.showMonthManage) html += renderManagePanel();
             html += '</div>'; // header
-
             // 콘텐츠
             html += '<div class="content">';
             html += '<div class="summary-grid">';
@@ -579,17 +530,13 @@
             html += '<div class="summary-card sc-red"><div class="label">지출합계</div><div class="value">' + formatNumber(totalExpenseWithRefund) + '원</div></div>';
             html += '<div class="summary-card sc-blue"><div class="label">수입합계</div><div class="value">' + formatNumber(incomeTotal) + '원</div></div>';
             html += '</div>';
-
             FIELDS.forEach(function (type) { html += renderSection(type); });
             html += '</div>';
-
             root.innerHTML = html;
         }
-
         function renderManagePanel() {
             var html = '<div class="manage-panel">';
             html += '<h3>월 관리</h3>';
-
             // 새 월 추가
             html += '<div><label class="manage-label">새 월 추가</label><div class="manage-row">';
             html += '<input type="number" class="num-input" value="' + escapeHtml(state.newMonthYear) + '" ' +
@@ -600,7 +547,6 @@
             html += '<span style="font-weight:bold">월</span>';
             html += '<button class="btn btn-green" style="flex:1" onclick="addMonth()">추가</button>';
             html += '</div></div>';
-
             // 월 이름 수정
             html += '<div><label class="manage-label">월 이름 수정</label><div class="month-list">';
             state.months.forEach(function (month) {
@@ -624,7 +570,6 @@
                 html += '</div>';
             });
             html += '</div></div>';
-
             // 월 삭제
             html += '<div><label class="manage-label">월 삭제</label><div class="month-list">';
             state.months.forEach(function (month) {
@@ -634,7 +579,6 @@
                 html += '</div></div>';
             });
             html += '</div></div>';
-
             // 데이터 백업 / 복원
             html += '<div style="border-top:1px solid #e5e7eb;margin:4px 0 16px;padding-top:16px">';
             html += '<label class="manage-label">💾 데이터 백업</label>';
@@ -644,24 +588,20 @@
             html += '<button class="btn btn-gray" style="flex:1" onclick="triggerRestore()">📂 복원하기</button>';
             html += '</div>';
             html += '</div>';
-
             html += '<button class="btn btn-gray" style="width:100%;margin-top:4px" onclick="onMonthManageToggle()">닫기</button>';
             html += '</div>';
             return html;
         }
-
         function renderSection(type) {
             var meta = SECTION_META[type];
             var cur = getCurrentData();
             var items = cur[type] || [];
             var isExpanded = state.expanded[type];
-
             var html = '<div class="section">';
             html += '<button class="section-header ' + meta.sh + '" onclick="onSectionToggle(\'' + type + '\')">';
             html += '<span class="title">' + meta.emoji + ' ' + meta.label + '</span>';
             html += '<span>' + (isExpanded ? '▲' : '▼') + '</span>';
             html += '</button>';
-
             if (isExpanded) {
                 html += '<div class="section-body"><div class="item-list">';
                 if (items.length === 0) {
